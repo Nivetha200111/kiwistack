@@ -11,6 +11,13 @@ export class GuardError extends Error {
   }
 }
 
+export const PDI_HOST = /^dev\d+\.service-now\.com$/i;
+
+/** A Personal Developer Instance: declared in config and confirmed by its host name. */
+export function isPdi(instance) {
+  return instance.pdi === true && PDI_HOST.test(instance.host);
+}
+
 export const REASON = {
   OUT_OF_SCOPE: 'OUT_OF_SCOPE',
   DATA_RECORD: 'DATA_RECORD',
@@ -29,7 +36,11 @@ export class Guard {
     return this.cache.get(key);
   }
 
-  /** Refuses instances that report themselves as production, whatever the config says. */
+  /**
+   * Refuses instances that report themselves as production. The one exception is a
+   * Personal Developer Instance, which can ship with the flag set: only when the config
+   * marks it "pdi": true AND the host has the PDI form devNNNN.service-now.com.
+   */
   async assertInstance() {
     return this.memo('instance', async () => {
       const rows = await this.client.query('sys_properties', {
@@ -37,7 +48,7 @@ export class Guard {
         fields: 'name,value',
         limit: 1,
       });
-      if (rows[0] && String(rows[0].value).toLowerCase() === 'true') {
+      if (rows[0] && String(rows[0].value).toLowerCase() === 'true' && !isPdi(this.instance)) {
         throw new GuardError('PRODUCTION', `${this.instance.host} has glide.installation.production=true. kiwistack never works on production.`);
       }
       return true;

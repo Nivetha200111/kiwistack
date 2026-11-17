@@ -37,6 +37,28 @@ test('an instance reporting glide.installation.production=true is refused even f
   assert.equal(r.body.error, 'PRODUCTION');
 });
 
+test('a PDI that ships with the production flag is allowed only when declared and on a devNNNN host', async () => {
+  const pdi = makeFakeInstance({ production: true });
+  Object.assign(pdi.instance, { host: 'dev485434.service-now.com', pdi: true });
+  assert.equal((await call(pdi, 'sn_query', { table: 'incident' })).isError, false);
+
+  const undeclared = makeFakeInstance({ production: true });
+  undeclared.instance.host = 'dev485434.service-now.com';
+  assert.equal((await call(undeclared, 'sn_query', { table: 'incident' })).body.error, 'PRODUCTION');
+
+  const lookalike = makeFakeInstance({ production: true });
+  Object.assign(lookalike.instance, { host: 'acme.service-now.com', pdi: true });
+  assert.equal((await call(lookalike, 'sn_query', { table: 'incident' })).body.error, 'PRODUCTION');
+});
+
+test('config refuses "pdi" on a host that is not a PDI', () => {
+  const c = goodConfig();
+  c.instances.dev.pdi = true;
+  assert.throws(() => validateConfig(c), /not a devNNNN/);
+  c.instances.dev.host = 'dev485434.service-now.com';
+  assert.doesNotThrow(() => validateConfig(c));
+});
+
 test('metadata writes without a current update set are refused', async () => {
   const fake = makeFakeInstance();
   const r = await call(fake, 'sn_upsert', { table: 'sys_script', values: { name: 'x' } });

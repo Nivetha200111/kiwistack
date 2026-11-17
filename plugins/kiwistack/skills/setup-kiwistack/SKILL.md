@@ -20,6 +20,11 @@ kiwistack only talks to instances listed in `~/.kiwistack/config.json` (`%USERPR
 2. **Tell the user how to create the OAuth client on the instance.** They do this themselves, as an admin.
    - System OAuth > Application Registry > New > "Create an OAuth API endpoint for external clients". Note the client id and generate a client secret.
    - For `client_credentials`: set the registry record's OAuth application user to the integration user, and make sure the system property `glide.oauth.inbound.client.credential.grant_type.enabled` is `true`. The property name differs on some releases, so check the instance's docs if the token call fails.
+   - **Scope Restriction (Zurich and later).** New clients default to **Securely scoped**, which only reaches APIs in the registry's own scope. Every Table API call then fails with "Access to unscoped api is not allowed".
+     - Add an auth scope record to the client: name and scope both `useraccount`. That's ServiceNow's special scope for "anything this user can do".
+     - Set the record's **Scope Restriction** to **Useraccount scoped**. kiwistack requests the `useraccount` scope by default.
+     - Use **Broadly scoped** only if that doesn't work.
+     - For a tighter setup, create a REST API auth scope covering only the Table API and the CI/CD API, link it to the client, and set `"scope"` in the config's `auth` block to its name.
    - The acting user needs to be able to write the app's metadata on dev (admin, or the app's delegated developer roles) and to run ATF through the CI/CD API (`sn_cicd.sys_ci_automation`).
 
 3. **Write `~/.kiwistack/config.json`.** No secrets go in it, only the names of the env variables:

@@ -7,6 +7,8 @@ description: Reads a ServiceNow instance before anyone designs or changes anythi
 
 The instance is the source of truth. Module references, docs and memory are starting maps. Recon turns guesses into facts you can cite.
 
+**ServiceNow silently ignores query conditions on fields that don't exist.** A filter like `major_incident_state=1` on an instance without Major Incident Management returns every row as if it had matched. So confirm each field with `sn_schema` before you filter on it, and distrust a result that looks unfiltered.
+
 Keep output small. Ask for few fields and low limits. Send big exports or schema dumps to a subagent and keep its summary.
 
 ## What to establish

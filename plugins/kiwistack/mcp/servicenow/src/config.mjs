@@ -59,6 +59,9 @@ export function validateConfig(config) {
       throw new ConfigError(`instances.${name} is marked ${inst.environment}. kiwistack never connects to production.`);
     }
     if (!inst.scope) throw new ConfigError(`instances.${name}.scope is required (the target app scope, e.g. x_acme_kiwi).`);
+    if (inst.pdi === true && !/^dev\d+\.service-now\.com$/i.test(inst.host)) {
+      throw new ConfigError(`instances.${name} is marked "pdi" but ${inst.host} is not a devNNNN.service-now.com host.`);
+    }
     const grant = inst.auth?.grant;
     if (grant !== 'client_credentials' && grant !== 'password') {
       throw new ConfigError(`instances.${name}.auth.grant must be "client_credentials" or "password".`);

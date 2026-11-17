@@ -22,7 +22,9 @@ How a Next Experience page is stored. This reference starts as a map from docume
 ## How the kiwi bundle walks it
 
 - `sn_ux_export_page` starts at the record you give it. It follows every 32-character id it finds, in reference fields and inside JSON fields, and resolves each through `sys_metadata`.
-- It keeps the `sys_ux_*` records in the same scope as the starting record.
+- It keeps the `sys_ux_*` records in the same scope as the starting record. It walks down only: ids in `parent_*` fields (a sub-page's shell) and `sys_*` fields are not followed.
+- Ids that `sys_metadata` doesn't return are probed in the data broker tables. Any still unresolved are listed in `unresolved_ids` with the field they came from.
+- It lists the routes that serve the exported screens in `routes`, and adds in-scope ones to the bundle.
 - It adds the children it can't reach by reference: the screens and routes of a screen type, and the client scripts of a macroponent.
 - It stops at the experience and app config, which are shared by every page, and lists those and anything from another scope (platform components, OOTB data brokers) as `external_refs`.
 - `sn_ux_upsert_page` checks that every `external_ref` exists on the target instance. It writes the records in dependency order, strips instance-managed `sys_*` fields, and keeps `sys_id`, or remaps every id when `remap_ids` is true.
@@ -45,7 +47,9 @@ How a Next Experience page is stored. This reference starts as a map from docume
 
 **What didn't**
 - A custom transform data broker needs an execute ACL. Creating ACLs needs `security_admin`, which an OAuth token can't elevate to. Without the ACL, the page shows no-access to everyone, admin included. Prefer OOTB GraphQL or record brokers, or ship the broker and its ACL through the SDK.
-- Exporting a sub-page screen pulls in the parent page's client scripts. Strip those from the template.
-- Data resources that aren't referenced by sys_id can be missing from the export.
+- Exporting a sub-page screen pulled in the parent page's client scripts. Fixed in the MCP server (not yet re-run on an instance): the export no longer follows `parent_*` fields, so the shell becomes an external ref.
+- A transform data resource was missing from the export because the `sys_metadata` lookup didn't return it. Fixed in the MCP server (not yet re-run on an instance): the export probes the data broker tables, lists ids it can't resolve in `unresolved_ids`, and lists the page's `routes`.
+- ATF step inputs are `sys_variable_value` rows, not step fields. The MCP server now treats a row owned by an in-scope step as part of that step (**atf**); not yet re-run on an instance.
+- `sys_ux_screen` has no roles field. Pages are restricted with an audience (`sys_ux_applicability`) linked to the screen.
 
 The spike script (`tools/spike-ux-roundtrip.mjs`) has still not been run.

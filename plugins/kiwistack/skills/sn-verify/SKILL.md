@@ -11,7 +11,7 @@ description: Proves ServiceNow work on the real instance. Runs the ATF suite, op
 
 - Run the suite for the work: `sn_atf_run_suite` with `suite_sys_id` or `suite_name`.
 - Report `successful`, or each failing test with its step and message from `results`.
-- A suite that can't start (the CI/CD plugin or role is missing) is a setup gap. Say so. Don't silently skip it.
+- A suite that can't start (`atf_runner_disabled`, or the CI/CD plugin or role is missing) is a setup gap. Say so. Don't silently skip it. If the result lists `stray_update_set_entries`, report them too.
 
 ## 2. The page or UI
 
@@ -24,6 +24,9 @@ Use the built-in browser.
   - The empty state: a parameter or filter that returns nothing.
   - The error or no-access state, when the page has one.
 - Read the page text to confirm labels, counts and states match what `sn_query` returns for the same filter. A count that doesn't match the data is a bug.
+  - Workspace pages render inside Now components' shadow DOM, which page-text and find tools don't see. Read the text with a small script in the page that walks `shadowRoot`s, or read the numbers off a screenshot.
+  - Workspaces keep hidden copies of earlier tabs in the DOM. Only count elements that are visible (non-zero size, not inside a hidden tab), or a DOM check finds duplicates.
+  - For a width wider than the browser pane, the screenshot may come back cropped or scaled. Note the width you actually captured, and prefer clicking by element reference over coordinates.
 - Check the browser console for errors from the page's components or data resources.
 - Click the primary action once, if there is one, and confirm what it does.
 

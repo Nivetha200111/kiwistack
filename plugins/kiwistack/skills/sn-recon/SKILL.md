@@ -16,7 +16,7 @@ Keep output small. Ask for few fields and low limits. Send big exports or schema
 Collect what the task needs, not all of it.
 
 1. **Context.** `sn_instance_info`: host, user, scope, update set.
-2. **Module presence.** `sn_plugins` with the module's search term (for example `hr`, `csm`, `sow`, `grc`). Read `../sn-modules/references/<module>.md` for the plugin ids and tables to expect. If the plugin isn't active, stop and say so.
+2. **Module presence.** `sn_plugins` with the module's search term (for example `hr`, `csm`, `sow`, `grc`). Workspaces show under `experiences` by their URL path. If you will run ATF, also read `sn_atf.runner.enabled` and check that `sn_cicd` is active (**atf**, "Running"). Read `../sn-modules/references/<module>.md` for the plugin ids and tables to expect. If the plugin isn't active, stop and say so.
 3. **Data model.** `sn_schema` for each table you'll read or write, with `include_choices` for state and stage fields. Note the parent chain (for example `sn_hr_le_case` extends `sn_hr_core_case` extends `task`).
 4. **Real data.** `sn_query` with a tight filter and limit to see what actual records look like, how many there are, and which fields are populated. A design based on empty fields is wrong.
 5. **What already runs on these tables.** Then you won't double up or break it.

@@ -4,7 +4,7 @@ Confirm everything here with `sn_schema` and `sn_plugins`.
 
 ## Workspaces
 
-- Service Operations Workspace (search `sn_plugins` for `sow`) is the current agent workspace for ITSM.
+- Service Operations Workspace (search `sn_plugins` for `sow`: it matches the workspace's path under `experiences`) is the current agent workspace for ITSM.
 - Older instances may use Agent Workspace. Find both in `sys_ux_page_registry`.
 
 ## Core tables

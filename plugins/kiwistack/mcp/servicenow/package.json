@@ -1,6 +1,6 @@
 {
   "name": "kiwistack-servicenow-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Guarded ServiceNow MCP server for kiwistack. Zero dependencies, stdio transport.",
   "type": "module",

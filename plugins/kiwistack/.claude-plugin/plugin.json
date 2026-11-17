@@ -1,6 +1,6 @@
 {
   "name": "kiwistack",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pstack-style agent stack for ServiceNow development. Start with /kiwi-mode.",
   "author": {
     "name": "kiwistack maintainers"

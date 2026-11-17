@@ -8,7 +8,7 @@ export const USER_ID = 'a'.repeat(32);
 export const SCOPE_ID = 'b'.repeat(32);
 export const OTHER_SCOPE_ID = 'c'.repeat(32);
 
-const METADATA_TABLES = ['sys_ux_app_config', 'sys_ux_screen', 'sys_ux_screen_type', 'sys_ux_macroponent', 'sys_ux_app_route', 'sys_ux_client_script', 'sys_ux_lib_component', 'sys_ux_data_broker_transform', 'sys_script', 'sys_script_include', 'sys_atf_step', 'sys_atf_schedule', 'sys_security_acl'];
+const METADATA_TABLES = ['sys_ux_app_config', 'sys_ux_screen', 'sys_ux_screen_type', 'sys_ux_macroponent', 'sys_ux_app_route', 'sys_ux_client_script', 'sys_ux_lib_component', 'sys_ux_data_broker_transform', 'sys_script', 'sys_script_include', 'sys_atf_step', 'sys_atf_schedule', 'sys_security_acl', 'sys_ux_event', 'sys_ux_client_script_include', 'sys_ux_applicability', 'sys_ux_applicability_m2m_screen', 'sys_ux_page_registry', 'sys_ux_data_broker_graphql', 'sys_user_role'];
 
 /**
  * Options:

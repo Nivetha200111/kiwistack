@@ -32,7 +32,7 @@ test('component catalog searches component macroponents by name, not every libra
 });
 
 test('every tool that writes exposes user_approved; read tools do not', () => {
-  const writers = new Set(['sn_upsert', 'sn_delete', 'sn_ux_upsert_page']);
+  const writers = new Set(['sn_upsert', 'sn_delete', 'sn_ux_upsert_page', 'sn_ux_build_page']);
   for (const t of TOOLS) assert.equal('user_approved' in t.inputSchema.properties, writers.has(t.name), t.name);
 });
 

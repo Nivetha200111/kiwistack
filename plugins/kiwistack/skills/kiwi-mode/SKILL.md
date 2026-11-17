@@ -15,14 +15,32 @@ Bundled skills live at `../<name>/SKILL.md` from this file. Playbooks live at `p
 - **Recon before design.** Run **sn-recon** before you design anything. Never assume a table, field, plugin, workspace or component exists. Confirm it on the instance.
 - **Module work.** Read `../sn-modules/references/<module>.md` and confirm the module's plugins with `sn_plugins`. The reference is a starting map. The instance is the truth.
 - **Before the first write.** `sn_update_set` with action `create` and a `kiwi/<task-slug>` name (**principle-update-set-discipline**). Every write goes into it. A write result with a `warning` stops the task; report it.
-- **Choosing how to build.** Configuration before code (**principle-config-before-code**). For code the ServiceNow SDK covers (tables, ACLs, roles, business rules, script includes, client scripts, UI policies, UI actions, ATF tests), use **fluent-sdk** so the source lives in git. The SDK needs the user to authenticate it (`now-sdk auth`), so if the plan needs it, ask for that in your first message rather than mid-run. Without the SDK, roles, script includes, ATF tests and other metadata go through `sn_upsert`, but ACLs can't (**principle-least-privilege-acls**), so choose a design that needs none or tell the user which ACL they will have to create. For UI Builder, use **ui-builder** with `sn_ux_export_page` and `sn_ux_upsert_page`, always starting from an exported template, never from a blank bundle. For flows, use **flow-designer**.
+- **Choosing how to build.** Configuration before code (**principle-config-before-code**). For code the ServiceNow SDK covers (tables, ACLs, roles, business rules, script includes, client scripts, UI policies, UI actions, ATF tests), use **fluent-sdk** so the source lives in git. The SDK needs the user to authenticate it (`now-sdk auth`), so if the plan needs it, ask for that in your first message rather than mid-run. Without the SDK, roles, script includes, ATF tests and other metadata go through `sn_upsert`, but ACLs can't (**principle-least-privilege-acls**), so choose a design that needs none or tell the user which ACL they will have to create. For UI Builder pages:
+  - If the page fits an attention board (summary cards, a list of what needs attention with reasons, a breakdown by group), compile it with `sn_ux_build_page`. This is minutes, not hours, and rebuilding the same route updates the page in place.
+  - Otherwise use **ui-builder** with `sn_ux_export_page` and `sn_ux_upsert_page`, always starting from an exported template, never from a blank bundle.
+  
+  For flows, use **flow-designer**.
 - **Any page or UI.** Apply **next-experience-design** and **principle-design-like-a-product**. A page that looks like a list view with a header is not done.
 - **needs_approval.** When a tool returns `status: needs_approval`, stop. Tell the user the reasons in plain words and ask. Set `user_approved: true` only after a clear yes in chat for that exact change. Never set it pre-emptively. The plugin's hook will show the user a permission prompt as well.
 - **Server or client code.** **server-scripting** or **client-scripting**, and **principle-query-hygiene**.
 - **Security.** New tables, roles, script includes callable from the client, data resources and REST endpoints get ACLs per **principle-least-privilege-acls**.
 - **Nontrivial design** (new data model, where logic lives, a page layout). **sn-architect** before building.
-- **Before you call it done.** **principle-prove-it-on-the-instance**. **sn-verify** gives you the evidence: ATF green, a screenshot of the real page, and the update set contents. Then the independent review gate: **sn-interrogate** with `kiwi-reviewer`. You never count your own review as that gate.
+- **Before you call it done.** **principle-prove-it-on-the-instance**.
+  - **sn-verify** gives you the evidence: ATF green, a screenshot of the real page, and the update set contents.
+  - `sn_app_audit` on the app must show no new critical or high findings.
+  - Then the independent review gate: **sn-interrogate** with `kiwi-reviewer`. You never count your own review as that gate.
 - **Something surprised you, or the user corrected you.** **reflect** at the end.
+
+## Fast by default
+
+A developer compares kiwistack with Studio's Build Agent, which ships a page in about 16 minutes. Match that pace without dropping the checks.
+
+- **Front-load what blocks.** In your first message, ask for anything only the user can give: SDK authentication, a role to test as, approval for an OOTB change. Check `sn_atf.runner.enabled` and the CI/CD plugin in recon, not after a failed run.
+- **One design unless it's contested.** Use **sn-architect**'s parallel designers only when no archetype fits, or when the user asks for options. When the attention board fits, the spec is the design.
+- **Compile, don't hand-write.** `sn_ux_build_page` for pages. `sn_upsert` with `values_from_files` for scripts. Never paste large JSON into a call.
+- **Run independent steps in parallel.** Recon queries, the role, ATF tests and page verification don't depend on each other's results.
+- **One review round.** Run a second round only if a rubric must or a critical or high audit finding fails.
+- **Report elapsed time** in the reply, so slow steps show up and get fixed (**reflect**).
 
 ## Principles
 
@@ -65,6 +83,7 @@ Match the task to one playbook. Open it and copy its steps into the task list wo
 - **Bug fix** (`playbooks/bug-fix.md`). A defect to reproduce, root-cause, fix and prove.
 - **Flow** (`playbooks/flow.md`). A Flow Designer flow, subflow or action.
 - **Review** (`playbooks/review.md`). Review an update set, a Fluent diff, or an existing page.
+- **Audit an app** (`playbooks/audit.md`). Security and hygiene audit of any scoped app, whoever built it, including apps from Studio's Build Agent.
 - **Release prep** (`playbooks/release-prep.md`). Get finished work ready to move. Never promotes anything.
 - **Authoring a skill** (`playbooks/authoring-a-skill.md`). Writing or changing a kiwistack skill.
 

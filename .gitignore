@@ -4,3 +4,4 @@ spike-out/
 .env
 secrets.env
 recordings/
+.kiwi/runs/

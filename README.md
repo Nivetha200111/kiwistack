@@ -40,6 +40,37 @@ tools/spike-ux-roundtrip.mjs phase 1 spike: clone a UI Builder page through the 
 - **SDK first.** Anything the ServiceNow SDK (Fluent) covers is source code in git: tables, ACLs, business rules, script includes, client scripts and ATF tests.
 - **UI Builder pages as records.** Fluent can't author UI Builder pages, so kiwistack exports a real page as a bundle of `sys_ux_*` records, edits it, and writes it back through the MCP server.
 
+## A team, not one agent
+
+Every build runs as a team of specialists (`/kiwi-team`, used by `/kiwi-mode`). The coordinator decides and reports; it doesn't do the work or check its own work.
+
+| Role | Does | Writes to instance | Default model |
+|-|-|-|-|
+| `kiwi-recon` | Instance facts, real counts, traps such as subclasses and ignored fields | No | Sonnet |
+| `kiwi-domain` | Turns the business question into exact definitions ("laptop" means servers excluded) | No | Opus |
+| `kiwi-designer` | Persona, page spec, rubric check | No (files only) | Opus |
+| `kiwi-builder` | Builds through the guarded tools | **Yes**, the only one | Opus |
+| `kiwi-qa` | Re-checks every number against the domain definition, clicks, widths, states | ATF only | Sonnet |
+| `kiwi-security` | App audit, least privilege, who can see it | No | Sonnet |
+| `kiwi-reviewer` | Independent review and slop check, on a different model from the builder | No | Opus |
+
+**How it runs:**
+- Recon and domain run in parallel, then the design, then the build.
+- QA, security and the reviewer then run in parallel, followed by one fix round.
+- Hand-offs are files in `.kiwi/runs/<task>/`.
+
+**Switch models per role** with `/kiwi-models`, or in a `models.json` per user (`~/.kiwistack/`) or per project (`.kiwi/`), for example `"qa": "opus@xhigh"`.
+
+**Verification is the product.**
+- A run isn't done until `scripts/check-run.mjs` passes. It needs:
+  - a count table checked against the instance;
+  - a screenshot;
+  - security and review verdicts;
+  - no unresolved count mismatches;
+  - no placeholder text;
+  - no table names in user-facing labels.
+- Anything nobody saw is reported as unverified.
+
 ## What kiwistack adds over Studio's Build Agent
 
 Studio's Build Agent (Brazil) builds fast. Same request, same PDI: it shipped a working page in 16 minutes. kiwistack's job is to match that speed and ship something you can trust.

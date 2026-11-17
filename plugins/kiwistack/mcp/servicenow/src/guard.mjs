@@ -1,4 +1,6 @@
 // @ts-check
+import { SYS_ID } from './client.mjs';
+
 // Every instance call passes through the Guard. Hard refusals throw GuardError.
 // Writes that need a human (out of scope, OOTB, data records, deletes) come back as
 // { needsApproval } and only proceed when the call carries user_approved, which the
@@ -23,6 +25,24 @@ export const REASON = {
   DATA_RECORD: 'DATA_RECORD',
   DELETE: 'DELETE',
 };
+
+/**
+ * Tables the instance only lets a user write with the security_admin role elevated. Role
+ * elevation is per interactive session, so an OAuth token can never do it: the Table API
+ * answers "ACL Exception Insert Failed due to security constraints".
+ */
+export const SECURITY_ADMIN_TABLES = new Set(['sys_security_acl', 'sys_security_acl_role']);
+
+/** Data tables whose rows belong to a metadata record: { table field, sys_id field } of the owner. */
+export const CHILD_OF_METADATA = {
+  sys_variable_value: { table: 'document', id: 'document_key' },
+};
+
+export const ACL_FALLBACK =
+  'ACLs need the security_admin role elevated, which an OAuth token cannot do, so kiwistack cannot write them over the MCP server. ' +
+  'Instead: (1) avoid needing a new ACL, e.g. read page data through an OOTB GraphQL or record data broker, which uses the existing table ACLs; ' +
+  '(2) ship the ACL with its data broker or table through the ServiceNow SDK (Fluent Acl, now-sdk install); or ' +
+  '(3) ask the user to elevate to security_admin and create it in the browser with the kiwi/ update set selected. See principle-least-privilege-acls.';
 
 export class Guard {
   constructor({ instance, client }) {
@@ -88,10 +108,15 @@ export class Guard {
     return this.client.get('sys_update_set', pref.value, 'sys_id,name,state,application,is_default');
   }
 
+  /** Switches the session's current application to the target scope. */
+  async setCurrentApplication() {
+    await this.setPreference('apps.current_app', await this.scopeId());
+  }
+
   /** Makes an update set current for the target scope and the session's current application. */
   async setCurrentUpdateSet(updateSetId) {
     const scopeId = await this.scopeId();
-    await this.setPreference('apps.current_app', scopeId);
+    await this.setCurrentApplication();
     await this.setPreference(`updateSetForScope${scopeId}`, updateSetId);
     await this.setPreference('sys_update_set', updateSetId);
     this.cache.delete('updateSet');
@@ -135,26 +160,55 @@ export class Guard {
   }
 
   /**
-   * Decides whether a write may run.
-   * @param {{table: string, existing?: any, isDelete?: boolean, userApproved?: boolean}} p
+   * For a row of a CHILD_OF_METADATA table, the metadata record that owns it, or null.
+   * @returns {Promise<{table: string, sys_id: string, sys_scope?: string} | null>}
    */
-  async checkWrite({ table, existing, isDelete = false, userApproved = false }) {
+  async metadataParent(table, existing, values) {
+    const f = CHILD_OF_METADATA[table];
+    if (!f) return null;
+    // A write that moves an existing row to another owner is not treated as part of either.
+    const moves = existing && [f.table, f.id].some((k) => values?.[k] && existing[k] && values[k] !== existing[k]);
+    if (moves) return null;
+    const parentTable = existing?.[f.table] || values?.[f.table];
+    const parentId = existing?.[f.id] || values?.[f.id];
+    if (!/^[a-z0-9_]+$/.test(parentTable || '') || !SYS_ID.test(parentId || '')) return null;
+    try {
+      if (!(await this.isMetadataTable(parentTable))) return null;
+    } catch {
+      return null;
+    }
+    const parent = await this.client.get(parentTable, parentId, 'sys_id,sys_scope');
+    return parent ? { table: parentTable, sys_id: parentId, sys_scope: parent.sys_scope } : null;
+  }
+
+  /**
+   * Decides whether a write may run.
+   * @param {{table: string, existing?: any, values?: any, isDelete?: boolean, userApproved?: boolean}} p
+   */
+  async checkWrite({ table, existing, values, isDelete = false, userApproved = false }) {
     await this.assertInstance();
+    if (SECURITY_ADMIN_TABLES.has(table)) throw new GuardError('NEEDS_SECURITY_ADMIN', `Cannot write ${table}. ${ACL_FALLBACK}`);
     const scopeId = await this.scopeId();
-    const metadata = await this.isMetadataTable(table);
+    let metadata = await this.isMetadataTable(table);
+    // Rows such as ATF step inputs (sys_variable_value) are data tables, but the instance
+    // captures them with the metadata record they belong to, so they are judged by it.
+    const parent = metadata ? null : await this.metadataParent(table, existing, values);
+    if (parent) metadata = true;
+    const owner = parent ? { ...parent, label: `${parent.table}/${parent.sys_id} (which owns this ${table} row)` } : existing && { ...existing, table, label: `${table}/${existing.sys_id}` };
     const reasons = [];
     let updateSet = null;
     if (metadata) {
       updateSet = await this.assertUpdateSet();
-      if (existing && existing.sys_scope && existing.sys_scope !== scopeId) {
-        reasons.push({ code: REASON.OUT_OF_SCOPE, detail: `${table}/${existing.sys_id} belongs to scope ${existing.sys_scope}, not ${this.instance.scope}. Editing it changes OOTB or another app's files.` });
+      if (owner && owner.sys_scope && owner.sys_scope !== scopeId) {
+        reasons.push({ code: REASON.OUT_OF_SCOPE, detail: `${owner.label} belongs to scope ${owner.sys_scope}, not ${this.instance.scope}. Editing it changes OOTB or another app's files.` });
       }
     } else {
       reasons.push({ code: REASON.DATA_RECORD, detail: `${table} is a data table. Writes are not captured in an update set and change shared dev data.` });
     }
     if (isDelete) reasons.push({ code: REASON.DELETE, detail: `Deleting ${table}/${existing?.sys_id}.` });
-    if (reasons.length && !userApproved) return { ok: false, needsApproval: reasons, metadata, updateSet, scopeId };
-    return { ok: true, approvedReasons: reasons, metadata, updateSet, scopeId };
+    const verdict = { metadata, updateSet, scopeId, captureAs: parent };
+    if (reasons.length && !userApproved) return { ok: false, needsApproval: reasons, ...verdict };
+    return { ok: true, approvedReasons: reasons, ...verdict };
   }
 
   /** Checks that the instance captured a metadata write in the current update set. */

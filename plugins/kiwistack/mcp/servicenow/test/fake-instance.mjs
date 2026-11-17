@@ -1,5 +1,5 @@
 // In-memory stand-in for a ServiceNow instance's Table API, OAuth and capture behaviour.
-// Supports the encoded-query operators the server uses: =, !=, IN, STARTSWITH, LIKE, ISNOTEMPTY, ORDERBY.
+// Supports the encoded-query operators the server uses: =, !=, IN, STARTSWITH, LIKE, ISNOTEMPTY, ^OR, ORDERBY.
 import { Guard } from '../src/guard.mjs';
 import { SnClient } from '../src/client.mjs';
 import { newSysId } from '../src/bundle.mjs';
@@ -8,9 +8,19 @@ export const USER_ID = 'a'.repeat(32);
 export const SCOPE_ID = 'b'.repeat(32);
 export const OTHER_SCOPE_ID = 'c'.repeat(32);
 
-const METADATA_TABLES = ['sys_ux_screen', 'sys_ux_screen_type', 'sys_ux_macroponent', 'sys_ux_app_route', 'sys_ux_client_script', 'sys_ux_lib_component', 'sys_script', 'sys_script_include'];
+const METADATA_TABLES = ['sys_ux_app_config', 'sys_ux_screen', 'sys_ux_screen_type', 'sys_ux_macroponent', 'sys_ux_app_route', 'sys_ux_client_script', 'sys_ux_lib_component', 'sys_ux_data_broker_transform', 'sys_script', 'sys_script_include', 'sys_atf_step', 'sys_atf_schedule', 'sys_security_acl'];
 
-export function makeFakeInstance({ production = false, capture = true } = {}) {
+/**
+ * Options:
+ * - production: the glide.installation.production value.
+ * - capture: whether metadata writes are captured in the current update set.
+ * - updateSetApp: forces the application a new update set gets (a real instance stamps
+ *   apps.current_app and ignores the application sent in the body).
+ * - deny: tables whose Table API calls fail with 403, like an API-level ACL.
+ * - hiddenFromMetadata: sys_ids that the sys_metadata query does not return.
+ * - routes: { 'METHOD /path': (url, body) => ({ status, body }) } for non-Table APIs.
+ */
+export function makeFakeInstance({ production = false, capture = true, updateSetApp, deny = [], hiddenFromMetadata = [], routes = {} } = {}) {
   const tables = new Map();
   const t = (name) => {
     if (!tables.has(name)) tables.set(name, new Map());
@@ -27,6 +37,7 @@ export function makeFakeInstance({ production = false, capture = true } = {}) {
   for (const name of METADATA_TABLES) put('sys_db_object', { sys_id: newSysId(), name, super_class: metaObj });
   put('sys_db_object', { sys_id: 'd'.repeat(32), name: 'task', super_class: '' });
   put('sys_db_object', { sys_id: newSysId(), name: 'incident', super_class: 'd'.repeat(32) });
+  put('sys_db_object', { sys_id: newSysId(), name: 'sys_variable_value', super_class: '' });
 
   put('sys_user', { sys_id: USER_ID, user_name: 'kiwi.agent', name: 'Kiwi Agent' });
   put('sys_scope', { sys_id: SCOPE_ID, scope: 'x_kiwi_demo', name: 'Kiwi Demo' });
@@ -38,20 +49,27 @@ export function makeFakeInstance({ production = false, capture = true } = {}) {
 
   const matches = (rec, query) => {
     if (!query) return true;
-    return query.split('^').every((cond) => {
-      if (!cond || cond.startsWith('ORDERBY')) return true;
-      let m;
-      if ((m = cond.match(/^(\w+)ISNOTEMPTY$/))) return Boolean(rec[m[1]]);
-      if ((m = cond.match(/^(\w+)IN(.*)$/))) return m[2].split(',').includes(String(rec[m[1]] ?? ''));
-      if ((m = cond.match(/^(\w+)STARTSWITH(.*)$/))) return String(rec[m[1]] ?? '').startsWith(m[2]);
-      if ((m = cond.match(/^(\w+)LIKE(.*)$/))) return String(rec[m[1]] ?? '').includes(m[2]);
-      if ((m = cond.match(/^(\w+)!=(.*)$/))) return String(rec[m[1]] ?? '') !== m[2];
-      if ((m = cond.match(/^(\w+)=(.*)$/))) {
-        const want = m[2] === 'javascript:gs.getUserID()' ? USER_ID : m[2];
-        return String(rec[m[1]] ?? '') === want;
-      }
-      throw new Error(`fake instance cannot parse "${cond}"`);
-    });
+    // ^OR joins a condition to the one before it: a^bLIKEx^ORcLIKEx is a AND (b OR c).
+    const groups = [];
+    for (const cond of query.split('^')) {
+      if (cond.startsWith('OR') && !cond.startsWith('ORDERBY') && groups.length) groups[groups.length - 1].push(cond.slice(2));
+      else groups.push([cond]);
+    }
+    return groups.every((g) => g.some((cond) => one(rec, cond)));
+  };
+  const one = (rec, cond) => {
+    if (!cond || cond.startsWith('ORDERBY')) return true;
+    let m;
+    if ((m = cond.match(/^(\w+)ISNOTEMPTY$/))) return Boolean(rec[m[1]]);
+    if ((m = cond.match(/^(\w+)IN(.*)$/))) return m[2].split(',').includes(String(rec[m[1]] ?? ''));
+    if ((m = cond.match(/^(\w+)STARTSWITH(.*)$/))) return String(rec[m[1]] ?? '').startsWith(m[2]);
+    if ((m = cond.match(/^(\w+)LIKE(.*)$/))) return String(rec[m[1]] ?? '').includes(m[2]);
+    if ((m = cond.match(/^(\w+)!=(.*)$/))) return String(rec[m[1]] ?? '') !== m[2];
+    if ((m = cond.match(/^(\w+)=(.*)$/))) {
+      const want = m[2] === 'javascript:gs.getUserID()' ? USER_ID : m[2];
+      return String(rec[m[1]] ?? '') === want;
+    }
+    throw new Error(`fake instance cannot parse "${cond}"`);
   };
   const pick = (rec, fields) => {
     if (!fields) return { ...rec };
@@ -67,9 +85,15 @@ export function makeFakeInstance({ production = false, capture = true } = {}) {
     calls.push(`${method} ${u.pathname}`);
     const json = (status, body) => ({ ok: status < 400, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) });
     if (u.pathname === '/oauth_token.do') return json(200, { access_token: 'token', expires_in: 1800 });
+    const route = routes[`${method} ${u.pathname}`];
+    if (route) {
+      const r = route(u, init.body ? JSON.parse(init.body) : undefined);
+      return json(r.status, r.body);
+    }
     const m = u.pathname.match(/^\/api\/now\/table\/(\w+)(?:\/(\w+))?$/);
     if (!m) return json(404, { error: { message: 'no route' } });
     const [, table, id] = m;
+    if (deny.includes(table)) return json(403, { error: { message: 'User Not Authorized', detail: `Access to ${table} is blocked by an API-level ACL.` } });
     const fields = u.searchParams.get('sysparm_fields') || undefined;
     if (method === 'GET' && id) {
       const rec = t(table).get(id);
@@ -78,17 +102,29 @@ export function makeFakeInstance({ production = false, capture = true } = {}) {
     if (method === 'GET') {
       const q = u.searchParams.get('sysparm_query') || '';
       const limit = Number(u.searchParams.get('sysparm_limit') || 10000);
-      const rows = [...t(table).values()].filter((r) => matches(r, q)).slice(0, limit).map((r) => pick(r, fields));
+      const rows = [...t(table).values()]
+        .filter((r) => !(table === 'sys_metadata' && hiddenFromMetadata.includes(r.sys_id)))
+        .filter((r) => matches(r, q))
+        .slice(0, limit)
+        .map((r) => pick(r, fields));
       return json(200, { result: rows });
     }
     const body = init.body ? JSON.parse(init.body) : {};
     const scoped = METADATA_TABLES.includes(table);
     const currentApp = pref('apps.current_app');
     const currentSet = pref(`updateSetForScope${currentApp}`) || pref('sys_update_set');
+    // Variable values (ATF step inputs) are captured as part of their parent record.
+    const captureName = (rec) =>
+      scoped ? `${table}_${rec.sys_id}` : table === 'sys_variable_value' && METADATA_TABLES.includes(rec.document) ? `${rec.document}_${rec.document_key}` : null;
+    const recordCapture = (rec) => {
+      const name = captureName(rec);
+      if (name && capture && currentSet) put('sys_update_xml', { sys_id: newSysId(), update_set: currentSet, name, action: 'INSERT_OR_UPDATE' });
+    };
     if (method === 'POST') {
       const rec = { ...body, sys_id: body.sys_id || newSysId(), ...(scoped ? { sys_scope: currentApp || 'global' } : {}) };
+      if (table === 'sys_update_set') rec.application = updateSetApp || currentApp || 'global';
       put(table, rec);
-      if (scoped && capture && currentSet) put('sys_update_xml', { sys_id: newSysId(), update_set: currentSet, name: `${table}_${rec.sys_id}`, action: 'INSERT_OR_UPDATE' });
+      recordCapture(rec);
       return json(201, { result: rec });
     }
     if (method === 'PATCH') {
@@ -96,7 +132,7 @@ export function makeFakeInstance({ production = false, capture = true } = {}) {
       if (!rec) return json(404, { error: { message: 'No Record found' } });
       Object.assign(rec, body);
       put(table, rec);
-      if (scoped && capture && currentSet) put('sys_update_xml', { sys_id: newSysId(), update_set: currentSet, name: `${table}_${rec.sys_id}`, action: 'INSERT_OR_UPDATE' });
+      recordCapture(rec);
       return json(200, { result: rec });
     }
     if (method === 'DELETE') {

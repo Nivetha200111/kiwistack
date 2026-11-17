@@ -21,7 +21,7 @@ Do this once per app.
 
 1. Ask before creating a project in the user's repo. Then run `npx @servicenow/sdk init` in an empty folder (or `now-sdk init`), with the app's name and scope. The scope must match `~/.kiwistack/config.json`.
    - To bring an existing app under source control, use the SDK's conversion command (`now-sdk transform` on recent versions; check `now-sdk --help`).
-2. Authenticate to the dev instance with `now-sdk auth`, using OAuth if the installed version supports it. The user enters the credentials in the terminal. You never type them.
+2. Authenticate to the dev instance with `now-sdk auth`, using OAuth if the installed version supports it. The user enters the credentials in the terminal. You never type them. Ask for this at the start of the task, not when you first need it, so an otherwise unattended run doesn't stall. If the user can't, build what you can through the MCP server (`sn_upsert` for roles, script includes, ATF tests) and list what's left for them: ACLs can't go through the MCP server.
 3. Commit the scaffold.
 
 ## The loop

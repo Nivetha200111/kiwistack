@@ -6,6 +6,8 @@ export class SnHttpError extends Error {
     this.code = 'HTTP';
     this.status = status;
     this.detail = detail;
+    /** @type {string | undefined} The response body, truncated, so a bare status is never all the caller sees. */
+    this.body = undefined;
   }
 }
 
@@ -49,12 +51,17 @@ export class SnClient {
         json = { raw: text.slice(0, 500) };
       }
       if (!res.ok) {
-        const msg = json?.error?.message || json?.error || `HTTP ${res.status}`;
-        const detail = json?.error?.detail;
+        // Table API errors use error.message; scoped APIs such as CI/CD put it in result.
+        const msg = json?.error?.message || json?.error || json?.result?.error || json?.result?.status_message || `HTTP ${res.status}`;
+        const detail = json?.error?.detail || json?.result?.status_detail;
         const hint = /unscoped api/i.test(String(detail))
           ? ' The OAuth client is "Securely scoped". On its Application Registry record set Scope Restriction to "Useraccount scoped" (with a "useraccount" auth scope linked) or "Broadly scoped"; see /setup-kiwistack.'
-          : '';
-        throw new SnHttpError(res.status, `${method} ${url.pathname} failed: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}${detail ? ` (${detail})` : ''}.${hint}`, detail);
+          : /ACL Exception/i.test(String(msg))
+            ? ' Writing ACLs needs security_admin elevation, which an OAuth token cannot do; see principle-least-privilege-acls.'
+            : '';
+        const err = new SnHttpError(res.status, `${method} ${url.pathname} failed: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}${detail ? ` (${detail})` : ''}.${hint}`, detail);
+        err.body = text ? text.slice(0, 2000) : '(empty body)';
+        throw err;
       }
       return json;
     }

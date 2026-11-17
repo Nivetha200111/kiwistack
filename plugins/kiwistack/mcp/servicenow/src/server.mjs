@@ -38,7 +38,13 @@ export function createServer({ contextFor = defaultContextFactory(), tools = TOO
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     } catch (e) {
       const err = /** @type {any} */ (e);
-      const payload = { error: err.code || 'ERROR', message: err.message, ...(err.detail ? { detail: err.detail } : {}) };
+      const payload = {
+        error: err.code || 'ERROR',
+        message: err.message,
+        ...(err.status ? { http_status: err.status } : {}),
+        ...(err.detail ? { detail: err.detail } : {}),
+        ...(err.body ? { body: err.body } : {}),
+      };
       return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }], isError: true };
     }
   }

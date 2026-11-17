@@ -24,7 +24,7 @@ Before building, read:
 
 Have a subagent do this. Bundles are large (**principle-guard-the-context-window**).
 
-1. Save the export to a JSON file in the scratchpad.
+1. Export straight to a file: `sn_ux_export_page` with `out_path` (an absolute `.json` path in the scratchpad) returns only a summary. Exporting a sub-page stops at its parent page: the shell's macroponent and client scripts become `external_refs`. Check `routes` and `unresolved_ids` in the summary.
 2. Summarise it: the layout tree (element ids, component names, slots), the data resources (their type, inputs and bound properties), the client states, the event handlers, and the client scripts.
 3. Make the edits as a script over the JSON (Node), not by hand in chat. The script is the artifact a reviewer can rerun.
    - Change the labels, titles and route names to the new page's.
@@ -32,18 +32,27 @@ Have a subagent do this. Bundles are large (**principle-guard-the-context-window
    - Point data resources at your data broker or at the module's tables, with the fields from the page brief.
    - Remove elements the new page doesn't need. Removing beats hiding.
 4. Validate locally. Parse every JSON field, check every element id is unique, and check every binding refers to an existing data resource or client state.
-5. Write with `sn_ux_upsert_page`: dry run, then real.
+5. Write with `sn_ux_upsert_page` and `bundle_path` (the edited file): dry run, then real. To change one large field, such as a macroponent's composition, use `sn_upsert` with `values_from_files` rather than pasting the JSON into the call.
 
 ## Data
 
-- Prefer OOTB data resources (record lists, aggregates, the GraphQL record queries) when they return what the page needs.
-- For shaped or aggregated data, such as progress per hire or counts by owner, write a transform data broker whose server script calls a script include in your scope (**server-scripting**, **principle-query-hygiene**). It needs an execute ACL (**principle-least-privilege-acls**) and an ATF test.
-- Return only the fields the page shows. Compute in the server, not in client scripts.
+Pick the data path in this order. The first two need no new ACL, so the MCP route can build them end to end.
+
+1. **OOTB GraphQL or record data resources.** For example *GlideRecord Collection Query*, record lists and aggregates. They read through the tables' existing ACLs, so nothing new is exposed. Copy the data resource's shape from an exported page that uses it, set the table, the encoded query, the fields and a limit. Shape the result in a client script include if needed: grouping and counting a bounded result (a few hundred rows) client-side is fine.
+2. **Several OOTB data resources combined.** One per table, each bounded, joined in a client script include.
+3. **A transform data broker** whose server script calls a script include in your scope (**server-scripting**, **principle-query-hygiene**), with an ATF test. Use it only when 1 and 2 can't answer the question (heavy aggregation, data the user may not read row by row). It needs an execute ACL (**principle-least-privilege-acls**). **Without that ACL the broker is denied to everyone, admin included**, and returns an unwrapped `acl_failure_result`. The MCP server can't create ACLs (`sn_upsert` refuses with `NEEDS_SECURITY_ADMIN`), so ship the broker and its ACL through the SDK (**fluent-sdk**), or ask the user to create the ACL before you build the page on it. Decide this at design time, not after the page renders empty.
+
+Return only the fields the page shows.
+
+## Browser fallbacks
+
+When something has to be done in the browser (UI Builder, a form the Table API can't fill), first switch the application picker to your scope and the update set picker to the `kiwi/` set. Saves otherwise land in the app's **Default** set, and switching applications in the browser also resets the update set the MCP server writes to. Afterwards run `sn_instance_info` (check `update_set_ok`) and `sn_update_set` action `contents`.
 
 ## Routes and variants
 
 - **A new page in an existing experience.** A new screen type, screen and route in your scope that point at the experience's app config. Inserts in your scope don't need approval.
 - **A variant of an OOTB page.** A new screen on the OOTB screen type, with your condition or audience and an order before the OOTB screen. The OOTB records stay untouched.
+- **Restricting a page to a role.** `sys_ux_screen` has no roles field. Create an audience (`sys_ux_applicability`, its `roles` field holds the role) and link it to the screen through the screen-to-audience m2m table. Find that table's name with `sn_query` on `sys_db_object`, `nameLIKEapplicability`, and confirm its fields with `sn_schema`. Both records are metadata in your scope.
 - **A new experience.** Only when no existing workspace or app fits the persona. Clone the smallest existing experience shell and say why in the reply.
 
 ## Keeping source complete

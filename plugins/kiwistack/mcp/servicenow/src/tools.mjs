@@ -1,6 +1,7 @@
 // @ts-check
 import { SYS_ID } from './client.mjs';
-import { GuardError } from './guard.mjs';
+import { GuardError, CHILD_OF_METADATA } from './guard.mjs';
+import { readJsonFile, valuesFromFiles, writeJsonFile } from './files.mjs';
 import { exportBundle, orderRecords, remapIds, stripSystemFields, validateBundle } from './bundle.mjs';
 
 const instanceProp = {
@@ -31,6 +32,11 @@ function assertSysId(id) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Update set entries for ATF schedule records, which a CI/CD suite run creates as a side effect. */
+async function atfScheduleEntries(client, updateSetId) {
+  return client.query('sys_update_xml', { query: `update_set=${updateSetId}^nameSTARTSWITHsys_atf_schedule`, fields: 'name,type,target_name,action', limit: 100 });
+}
+
 /** @type {Array<{name: string, description: string, inputSchema: any, handler: (args: any, ctx: any) => Promise<any>}>} */
 export const TOOLS = [
   {
@@ -40,6 +46,15 @@ export const TOOLS = [
     async handler(_args, { instance, client, guard }) {
       await guard.assertInstance();
       const [user, scopeId, us] = await Promise.all([client.currentUser(), guard.scopeId(), guard.currentUpdateSet()]);
+      const problem = !us
+        ? 'No current update set. Create one with sn_update_set action "create".'
+        : us.name === 'Default' || String(us.is_default) === 'true'
+          ? 'The current update set is Default.'
+          : us.state !== 'in progress'
+            ? `The current update set is ${us.state}.`
+            : us.application !== scopeId
+              ? `The current update set belongs to application ${us.application}, not ${instance.scope} (${scopeId}).`
+              : null;
       return {
         instance: instance.name,
         host: instance.host,
@@ -47,7 +62,8 @@ export const TOOLS = [
         user: { sys_id: user.sys_id, user_name: user.user_name },
         scope: { name: instance.scope, sys_id: scopeId },
         current_update_set: us,
-        update_set_ok: Boolean(us && us.name !== 'Default' && us.state === 'in progress' && us.application === scopeId),
+        update_set_ok: !problem,
+        ...(problem ? { update_set_problem: problem } : {}),
       };
     },
   },
@@ -79,17 +95,39 @@ export const TOOLS = [
   },
   {
     name: 'sn_get',
-    description: 'Read one record by sys_id, all fields or the listed ones.',
+    description: 'Read one record by sys_id, all fields or the listed ones. Long field values are cut at max_field_chars; use out_path to get the whole record as a file.',
     inputSchema: {
       type: 'object',
       required: ['table', 'sys_id'],
-      properties: { ...instanceProp, table: { type: 'string' }, sys_id: { type: 'string' }, fields: { type: 'string' } },
+      properties: {
+        ...instanceProp,
+        table: { type: 'string' },
+        sys_id: { type: 'string' },
+        fields: { type: 'string' },
+        max_field_chars: { type: 'integer', default: 4000, description: 'Longer string values are truncated in the reply and listed in truncated_fields.' },
+        out_path: { type: 'string', description: 'Absolute .json path. Writes the full record there and returns field sizes instead.' },
+      },
     },
     async handler(a, { client, guard }) {
       assertTable(a.table);
       assertSysId(a.sys_id);
       await guard.assertInstance();
-      return { record: await client.get(a.table, a.sys_id, a.fields) };
+      const record = await client.get(a.table, a.sys_id, a.fields);
+      if (!record) return { record: null };
+      if (a.out_path) {
+        const bytes = writeJsonFile(a.out_path, record);
+        const field_chars = Object.fromEntries(Object.entries(record).map(([k, v]) => [k, String(v ?? '').length]));
+        return { status: 'written', out_path: a.out_path, bytes, field_chars };
+      }
+      const max = a.max_field_chars ?? 4000;
+      const truncated = {};
+      for (const [k, v] of Object.entries(record)) {
+        if (typeof v === 'string' && v.length > max) {
+          truncated[k] = v.length;
+          record[k] = `${v.slice(0, max)}... [truncated: ${v.length} chars]`;
+        }
+      }
+      return { record, ...(Object.keys(truncated).length ? { truncated_fields: truncated, hint: 'Pass out_path to read the full values from a file.' } : {}) };
     },
   },
   {
@@ -122,22 +160,35 @@ export const TOOLS = [
   },
   {
     name: 'sn_plugins',
-    description: 'Which plugins and store apps are installed and active (for example HRSD, CSM, Workspace). Use before designing anything module-specific.',
-    inputSchema: { type: 'object', properties: { ...instanceProp, search: { type: 'string', description: 'Substring of name or id.' } } },
+    description: 'Which plugins, store apps and workspaces are installed and active (for example HRSD, CSM, Service Operations Workspace). search matches plugin names and ids, app names and scopes, and workspace titles and URL paths (e.g. "sow"). Use before designing anything module-specific.',
+    inputSchema: { type: 'object', properties: { ...instanceProp, search: { type: 'string', description: 'Substring of a name, id, scope, or workspace path.' } } },
     async handler(a, { client, guard }) {
       await guard.assertInstance();
       const s = a.search ? `^nameLIKE${a.search}^ORidLIKE${a.search}` : '';
-      const out = { plugins: [], store_apps: [], warnings: [] };
+      const ss = a.search ? `^nameLIKE${a.search}^ORscopeLIKE${a.search}` : '';
+      const out = { plugins: [], store_apps: [], experiences: [], warnings: [] };
       try {
         out.plugins = await client.query('v_plugin', { query: `active=active${s}`, fields: 'id,name,active,version', limit: 200 });
       } catch (e) {
         out.warnings.push(`v_plugin: ${e.message}`);
       }
       try {
-        const ss = a.search ? `^nameLIKE${a.search}^ORscopeLIKE${a.search}` : '';
         out.store_apps = await client.query('sys_store_app', { query: `active=true${ss}`, fields: 'name,scope,version', limit: 200 });
       } catch (e) {
-        out.warnings.push(`sys_store_app: ${e.message}`);
+        // sys_store_app is often blocked for REST by an API-level ACL; its parent sys_scope is readable.
+        try {
+          out.store_apps = await client.query('sys_scope', { query: `active=true${ss}`, fields: 'name,scope,version,sys_class_name', limit: 200 });
+          out.warnings.push(`sys_store_app is not readable (${e.message}); store_apps come from sys_scope instead, which also lists custom apps.`);
+        } catch (e2) {
+          out.warnings.push(`sys_store_app: ${e.message}; sys_scope: ${e2.message}`);
+        }
+      }
+      try {
+        // Workspaces are store apps whose names rarely contain their short name, but their URL path does (/now/sow).
+        const rs = a.search ? `^pathLIKE${a.search}^ORtitleLIKE${a.search}` : '';
+        out.experiences = await client.query('sys_ux_page_registry', { query: `active=true${rs}`, fields: 'sys_id,title,path,sys_scope', limit: a.search ? 50 : 200 });
+      } catch (e) {
+        out.warnings.push(`sys_ux_page_registry: ${e.message}`);
       }
       return out;
     },
@@ -167,7 +218,7 @@ export const TOOLS = [
         sys_id: { type: 'string', description: 'For set_current or contents.' },
       },
     },
-    async handler(a, { client, guard }) {
+    async handler(a, { instance, client, guard }) {
       await guard.assertInstance();
       if (a.action === 'current') return { update_set: await guard.currentUpdateSet() };
       if (a.action === 'create') {
@@ -175,9 +226,26 @@ export const TOOLS = [
         const name = a.name.startsWith('kiwi/') ? a.name : `kiwi/${a.name}`;
         const scopeId = await guard.scopeId();
         const existing = await client.query('sys_update_set', { query: `name=${name}^application=${scopeId}^state=in progress`, fields: 'sys_id,name,state,application', limit: 1 });
-        const us = existing[0] || (await client.insert('sys_update_set', { name, application: scopeId, state: 'in progress', description: a.description || 'Created by kiwistack.' }));
+        let us = existing[0];
+        if (!us) {
+          // The instance stamps a new update set with the session's current application and
+          // ignores the application sent in the body, so switch the application first.
+          await guard.setCurrentApplication();
+          const inserted = await client.insert('sys_update_set', { name, application: scopeId, state: 'in progress', description: a.description || 'Created by kiwistack.' });
+          us = (await client.get('sys_update_set', inserted.sys_id, 'sys_id,name,state,application')) || inserted;
+          if (us.application !== scopeId) {
+            throw new GuardError(
+              'UPDATE_SET_SCOPE_MISMATCH',
+              `The instance created update set "${name}" (${us.sys_id}) in application ${us.application || '(empty)'}, not ${instance.scope} (${scopeId}). It was not made current, and nothing was written into it. Ask the user before deleting it; check that the acting user can switch to ${instance.scope} (apps.current_app).`,
+            );
+          }
+        }
         await guard.setCurrentUpdateSet(us.sys_id);
-        return { update_set: await guard.currentUpdateSet(), reused: Boolean(existing[0]) };
+        const current = await guard.currentUpdateSet();
+        if (current?.sys_id !== us.sys_id) {
+          throw new GuardError('UPDATE_SET_NOT_CURRENT', `Update set "${name}" (${us.sys_id}) exists in ${instance.scope} but did not become current; the current one is ${current ? `"${current.name}"` : 'none'}.`);
+        }
+        return { update_set: current, reused: Boolean(existing[0]) };
       }
       if (a.action === 'set_current') {
         assertSysId(a.sys_id);
@@ -195,15 +263,20 @@ export const TOOLS = [
   },
   {
     name: 'sn_upsert',
-    description: 'Insert or update one record. Identify an existing record by sys_id or by match_query (must match at most one). Metadata writes must land in the current kiwi/ update set; the result says whether the instance captured it.',
+    description: 'Insert or update one record. Identify an existing record by sys_id or by match_query (must match at most one). Metadata writes must land in the current kiwi/ update set; the result says whether the instance captured it. ATF step inputs (sys_variable_value rows of an in-scope step) count as part of the step. Large field values can come from files (values_from_files).',
     inputSchema: {
       type: 'object',
-      required: ['table', 'values'],
+      required: ['table'],
       properties: {
         ...instanceProp,
         ...approvedProp,
         table: { type: 'string' },
         values: { type: 'object' },
+        values_from_files: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+          description: 'Field name -> absolute file path. The field gets the file\'s text; a .json file is stored as compact JSON (e.g. a macroponent composition). Merged over values.',
+        },
         sys_id: { type: 'string', description: 'Update this record, or insert with this sys_id when it does not exist.' },
         match_query: { type: 'string', description: 'Encoded query that finds the record to update.' },
       },
@@ -211,25 +284,30 @@ export const TOOLS = [
     async handler(a, { client, guard }) {
       assertTable(a.table);
       if (a.sys_id) assertSysId(a.sys_id);
+      const values = { ...(a.values || {}), ...valuesFromFiles(a.values_from_files) };
+      delete values.sys_id;
+      if (!Object.keys(values).length) throw new GuardError('BAD_INPUT', 'Give values or values_from_files.');
+      const child = CHILD_OF_METADATA[a.table];
+      const lookupFields = ['sys_id', 'sys_scope', ...(child ? [child.table, child.id] : [])].join(',');
       let existing = null;
-      if (a.sys_id) existing = await client.get(a.table, a.sys_id, 'sys_id,sys_scope');
+      if (a.sys_id) existing = await client.get(a.table, a.sys_id, lookupFields);
       else if (a.match_query) {
-        const rows = await client.query(a.table, { query: a.match_query, fields: 'sys_id,sys_scope', limit: 2 });
+        const rows = await client.query(a.table, { query: a.match_query, fields: lookupFields, limit: 2 });
         if (rows.length > 1) throw new GuardError('AMBIGUOUS', `match_query matched more than one ${a.table} record.`);
         existing = rows[0] || null;
       }
-      const verdict = await guard.checkWrite({ table: a.table, existing, userApproved: a.user_approved === true });
+      const verdict = await guard.checkWrite({ table: a.table, existing, values, userApproved: a.user_approved === true });
       if (!verdict.ok) return needsApproval(verdict.needsApproval, `${existing ? 'update' : 'insert'} ${a.table}`);
-      const values = { ...a.values };
-      delete values.sys_id;
       const result = existing
         ? await client.patch(a.table, existing.sys_id, values)
         : await client.insert(a.table, a.sys_id ? { ...values, sys_id: a.sys_id } : values);
       const out = { action: existing ? 'updated' : 'inserted', table: a.table, sys_id: result.sys_id };
       if (verdict.metadata) {
+        const owner = verdict.captureAs || { table: a.table, sys_id: result.sys_id, sys_scope: result.sys_scope };
         out.update_set = verdict.updateSet.name;
-        out.captured_in_update_set = await guard.captured(verdict.updateSet.sys_id, a.table, result.sys_id);
-        out.record_scope_ok = result.sys_scope === verdict.scopeId;
+        if (verdict.captureAs) out.captured_as = `${owner.table}/${owner.sys_id}`;
+        out.captured_in_update_set = await guard.captured(verdict.updateSet.sys_id, owner.table, owner.sys_id);
+        out.record_scope_ok = owner.sys_scope === verdict.scopeId;
         if (!out.captured_in_update_set || !out.record_scope_ok) out.warning = 'The write did not land where expected. Stop and report it; do not keep writing.';
       }
       return out;
@@ -265,33 +343,52 @@ export const TOOLS = [
         table: { type: 'string' },
         sys_id: { type: 'string' },
         max_records: { type: 'integer', default: 300 },
+        out_path: { type: 'string', description: 'Absolute .json path. Writes the bundle there and returns only a summary. Use it for anything but tiny pages.' },
       },
     },
     async handler(a, { instance, client, guard }) {
       assertTable(a.table);
       assertSysId(a.sys_id);
       await guard.assertInstance();
-      return exportBundle(client, { table: a.table, sys_id: a.sys_id, maxRecords: a.max_records ?? 300, host: instance.host });
+      const bundle = await exportBundle(client, { table: a.table, sys_id: a.sys_id, maxRecords: a.max_records ?? 300, host: instance.host });
+      if (!a.out_path) return bundle;
+      const bytes = writeJsonFile(a.out_path, bundle);
+      const byTable = {};
+      for (const r of bundle.records) byTable[r.table] = (byTable[r.table] || 0) + 1;
+      return {
+        status: 'written',
+        out_path: a.out_path,
+        bytes,
+        root: bundle.root,
+        records: bundle.records.length,
+        records_by_table: byTable,
+        external_refs: bundle.external_refs.length,
+        routes: bundle.routes,
+        unresolved_ids: bundle.unresolved_ids,
+        warnings: bundle.warnings,
+      };
     },
   },
   {
     name: 'sn_ux_upsert_page',
-    description: 'Write a kiwi bundle (from sn_ux_export_page or hand-built) into the current kiwi/ update set, in dependency order. remap_ids gives every record a fresh sys_id, which is how you clone a template. Nothing is written if any record needs approval.',
+    description: 'Write a kiwi bundle (from sn_ux_export_page or hand-built) into the current kiwi/ update set, in dependency order. Pass it inline (bundle) or, for anything large, as a file (bundle_path). remap_ids gives every record a fresh sys_id, which is how you clone a template. Nothing is written if any record needs approval.',
     inputSchema: {
       type: 'object',
-      required: ['bundle'],
       properties: {
         ...instanceProp,
         ...approvedProp,
         bundle: { type: 'object' },
+        bundle_path: { type: 'string', description: 'Absolute path of a bundle JSON file, instead of bundle.' },
         remap_ids: { type: 'boolean', default: false },
         dry_run: { type: 'boolean', default: false },
       },
     },
     async handler(a, { client, guard }) {
-      const errors = validateBundle(a.bundle);
+      if (Boolean(a.bundle) === Boolean(a.bundle_path)) throw new GuardError('BAD_INPUT', 'Give exactly one of bundle or bundle_path.');
+      const input = a.bundle_path ? readJsonFile(a.bundle_path, 'bundle_path') : a.bundle;
+      const errors = validateBundle(input);
       if (errors.length) return { status: 'invalid_bundle', errors };
-      const bundle = a.remap_ids ? remapIds(a.bundle) : a.bundle;
+      const bundle = a.remap_ids ? remapIds(input) : input;
 
       const externalIds = (bundle.external_refs || []).map((e) => e.sys_id);
       const missing = [];
@@ -309,7 +406,7 @@ export const TOOLS = [
       for (const r of ordered) {
         assertTable(r.table);
         const existing = await client.get(r.table, r.sys_id, 'sys_id,sys_scope');
-        const verdict = await guard.checkWrite({ table: r.table, existing, userApproved: a.user_approved === true });
+        const verdict = await guard.checkWrite({ table: r.table, existing, values: r.values, userApproved: a.user_approved === true });
         if (!verdict.ok) approvals.push(...verdict.needsApproval);
         plan.push({ record: r, existing, verdict });
       }
@@ -328,7 +425,9 @@ export const TOOLS = [
           table: p.record.table,
           sys_id: res.sys_id,
           action: p.existing ? 'updated' : 'inserted',
-          captured_in_update_set: updateSet ? await guard.captured(updateSet.sys_id, p.record.table, res.sys_id) : null,
+          captured_in_update_set: updateSet
+            ? await guard.captured(updateSet.sys_id, p.verdict.captureAs?.table || p.record.table, p.verdict.captureAs?.sys_id || res.sys_id)
+            : null,
         });
       }
       const uncaptured = written.filter((w) => w.captured_in_update_set === false);
@@ -356,11 +455,51 @@ export const TOOLS = [
     async handler(a, { client, guard }) {
       await guard.assertInstance();
       if (!a.suite_sys_id && !a.suite_name) throw new GuardError('BAD_INPUT', 'Give suite_sys_id or suite_name.');
-      const started = await client.request('POST', '/api/sn_cicd/testsuite/run', {
-        query: a.suite_sys_id ? { test_suite_sys_id: a.suite_sys_id } : { test_suite_name: a.suite_name },
-      });
+
+      // The CI/CD API answers a bare HTTP 400 when the ATF runner is off, and still
+      // creates schedule records, so check the property before starting a run.
+      const runner = (await client.query('sys_properties', { query: 'name=sn_atf.runner.enabled', fields: 'name,value', limit: 1 }))[0];
+      if (runner && String(runner.value).toLowerCase() === 'false') {
+        return {
+          status: 'atf_runner_disabled',
+          message: 'sn_atf.runner.enabled is false on this instance, so no ATF test can run (the CI/CD API would answer HTTP 400). It is an OOTB system property: ask the user to set it to true (System Properties, or sn_upsert on sys_properties with their approval), then run the suite again.',
+        };
+      }
+
+      const usBefore = await guard.currentUpdateSet();
+      const strayBefore = usBefore ? await atfScheduleEntries(client, usBefore.sys_id) : [];
+      const strays = async () => {
+        if (!usBefore) return {};
+        const after = await atfScheduleEntries(client, usBefore.sys_id);
+        const known = new Set(strayBefore.map((e) => e.name));
+        const added = after.filter((e) => !known.has(e.name));
+        return added.length
+          ? {
+              stray_update_set_entries: added,
+              warning: `The run created ${added.length} ATF schedule record(s) captured in "${usBefore.name}". They are not part of the work: tell the user and back them out of the update set before it is completed (needs their approval).`,
+            }
+          : {};
+      };
+
+      let started;
+      try {
+        started = await client.request('POST', '/api/sn_cicd/testsuite/run', {
+          query: a.suite_sys_id ? { test_suite_sys_id: a.suite_sys_id } : { test_suite_name: a.suite_name },
+        });
+      } catch (e) {
+        const err = /** @type {any} */ (e);
+        if (!err.status) throw e;
+        return {
+          status: 'run_failed',
+          http_status: err.status,
+          message: err.message,
+          response_body: err.body,
+          hint: 'Check that the sn_cicd plugin is active, the acting user has sn_cicd.sys_ci_automation, the suite exists, and sn_atf.runner.enabled is true.',
+          ...(await strays()),
+        };
+      }
       const progressId = started?.result?.links?.progress?.id;
-      if (!progressId) return { status: 'unexpected_response', response: started };
+      if (!progressId) return { status: 'unexpected_response', response: started, ...(await strays()) };
       const deadline = Date.now() + (a.wait_seconds ?? 600) * 1000;
       let progress;
       while (Date.now() < deadline) {
@@ -373,7 +512,9 @@ export const TOOLS = [
       return {
         status: { 0: 'pending', 1: 'running', 2: 'successful', 3: 'failed', 4: 'canceled' }[String(progress?.status)] || 'timed_out',
         progress_id: progressId,
+        ...(progress?.status_message ? { status_message: progress.status_message } : {}),
         results,
+        ...(await strays()),
       };
     },
   },

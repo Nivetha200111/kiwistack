@@ -144,12 +144,12 @@ export const TOOLS = [
   },
   {
     name: 'sn_component_catalog',
-    description: 'Next Experience components available to UI Builder on this instance (sys_ux_lib_component). Only design with components listed here.',
-    inputSchema: { type: 'object', properties: { ...instanceProp, search: { type: 'string' }, limit: { type: 'integer', default: 100 } } },
+    description: 'Next Experience components available to UI Builder on this instance: the component and primitive macroponents (sys_ux_macroponent) that page compositions reference by sys_id in definition.id. Only design with components listed here.',
+    inputSchema: { type: 'object', properties: { ...instanceProp, search: { type: 'string', description: 'Substring of the component name, e.g. "Highlighted value".' }, limit: { type: 'integer', default: 100 } } },
     async handler(a, { client, guard }) {
       await guard.assertInstance();
-      const q = a.search ? `nameLIKE${a.search}^ORlabelLIKE${a.search}^ORtagLIKE${a.search}` : '';
-      const rows = await client.query('sys_ux_lib_component', { query: q, fields: 'sys_id,name,label,tag,category,description', limit: a.limit ?? 100 });
+      const q = ['categoryINcomponent,primitives', a.search ? `nameLIKE${a.search}` : ''].filter(Boolean).join('^');
+      const rows = await client.query('sys_ux_macroponent', { query: q, fields: 'sys_id,name,category,sys_scope', limit: a.limit ?? 100, orderBy: 'name' });
       return { count: rows.length, components: rows };
     },
   },

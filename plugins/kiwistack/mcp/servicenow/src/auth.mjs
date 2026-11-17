@@ -72,9 +72,14 @@ export class TokenProvider {
 
   grantParams() {
     const a = this.instance.auth;
+    // Since Zurich, a token only reaches APIs linked to one of its auth scopes. "useraccount"
+    // is ServiceNow's special scope for "anything the user can do"; a narrower REST API auth
+    // scope can be configured instead. Set auth.scope to "" to send none.
+    const scope = a.scope ?? 'useraccount';
     const base = {
       client_id: secret(this.loaded, a.client_id_env, 'OAuth client id'),
       client_secret: secret(this.loaded, a.client_secret_env, 'OAuth client secret'),
+      ...(scope ? { scope } : {}),
     };
     if (a.grant === 'client_credentials') return { grant_type: 'client_credentials', ...base };
     return {

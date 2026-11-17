@@ -50,7 +50,11 @@ export class SnClient {
       }
       if (!res.ok) {
         const msg = json?.error?.message || json?.error || `HTTP ${res.status}`;
-        throw new SnHttpError(res.status, `${method} ${url.pathname} failed: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`, json?.error?.detail);
+        const detail = json?.error?.detail;
+        const hint = /unscoped api/i.test(String(detail))
+          ? ' The OAuth client is "Securely scoped". On its Application Registry record set Scope Restriction to "Useraccount scoped" (with a "useraccount" auth scope linked) or "Broadly scoped"; see /setup-kiwistack.'
+          : '';
+        throw new SnHttpError(res.status, `${method} ${url.pathname} failed: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}${detail ? ` (${detail})` : ''}.${hint}`, detail);
       }
       return json;
     }

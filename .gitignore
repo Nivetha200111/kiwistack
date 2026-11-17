@@ -3,3 +3,4 @@ spike-out/
 *.bak
 .env
 secrets.env
+recordings/

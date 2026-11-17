@@ -20,6 +20,17 @@ test('initialize, tools/list and notifications follow MCP', async () => {
   assert.equal(unknown.error.code, -32601);
 });
 
+test('component catalog searches component macroponents by name, not every library record', async () => {
+  const { makeFakeInstance } = await import('./fake-instance.mjs');
+  const fake = makeFakeInstance();
+  fake.put('sys_ux_macroponent', { sys_id: '1'.repeat(32), name: 'Highlighted value', category: 'primitives', sys_scope: 'global' });
+  fake.put('sys_ux_macroponent', { sys_id: '2'.repeat(32), name: 'Data Visualization', category: 'component', sys_scope: 'global' });
+  fake.put('sys_ux_macroponent', { sys_id: '3'.repeat(32), name: 'Highlighted page', category: 'page', sys_scope: 'global' });
+  const res = await createServer({ contextFor: () => fake.ctx }).callTool('sn_component_catalog', { search: 'Highlighted' });
+  const body = JSON.parse(res.content[0].text);
+  assert.deepEqual(body.components.map((c) => c.name), ['Highlighted value']);
+});
+
 test('every tool that writes exposes user_approved; read tools do not', () => {
   const writers = new Set(['sn_upsert', 'sn_delete', 'sn_ux_upsert_page']);
   for (const t of TOOLS) assert.equal('user_approved' in t.inputSchema.properties, writers.has(t.name), t.name);

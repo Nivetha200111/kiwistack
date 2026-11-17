@@ -36,4 +36,16 @@ How a Next Experience page is stored. This reference starts as a map from docume
 
 ## Verified on
 
-_Not yet verified. Run `node tools/spike-ux-roundtrip.mjs` against the dev instance and record here: the release, what round-tripped, what had to change, and the date._
+**2026-11-17, Brazil patch 2 PDI.** This was a kiwistack run (`/kiwi-mode`, P1 attention board), not the spike script.
+
+**What worked**
+- A new page written through the Table API rendered as a tab inside Service Operations Workspace. It was 30 records in total: route, screen type, screen, macroponent, a client script include and 7 client scripts.
+- The records were captured in the `kiwi/` update set.
+- Data through the OOTB GraphQL broker *GlideRecord Collection Query* rendered, under the existing table ACLs.
+
+**What didn't**
+- A custom transform data broker needs an execute ACL. Creating ACLs needs `security_admin`, which an OAuth token can't elevate to. Without the ACL, the page shows no-access to everyone, admin included. Prefer OOTB GraphQL or record brokers, or ship the broker and its ACL through the SDK.
+- Exporting a sub-page screen pulls in the parent page's client scripts. Strip those from the template.
+- Data resources that aren't referenced by sys_id can be missing from the export.
+
+The spike script (`tools/spike-ux-roundtrip.mjs`) has still not been run.

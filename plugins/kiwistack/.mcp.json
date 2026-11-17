@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/servicenow/src/index.mjs"]
+    }
+  }
+}

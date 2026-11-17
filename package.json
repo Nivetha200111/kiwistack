@@ -1,0 +1,12 @@
+{
+  "name": "kiwistack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A pstack-style agent stack for ServiceNow development.",
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix plugins/kiwistack/mcp/servicenow test && node tools/lint-skills.mjs",
+    "lint": "node tools/lint-skills.mjs",
+    "spike": "node tools/spike-ux-roundtrip.mjs"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "kiwistack",
+  "owner": {
+    "name": "kiwistack maintainers"
+  },
+  "metadata": {
+    "description": "Agent stack for ServiceNow development: UI Builder pages, scoped-app logic, flows, review and ATF, built and verified on a dev instance.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "kiwistack",
+      "source": "./plugins/kiwistack",
+      "description": "kiwi-mode orchestrator, ServiceNow playbooks, principles, domain skills and a guarded ServiceNow MCP server.",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["servicenow", "ui-builder", "fluent", "now-sdk", "atf", "hrsd", "itsm"]
+    }
+  ]
+}

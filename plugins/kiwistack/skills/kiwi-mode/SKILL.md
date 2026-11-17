@@ -5,7 +5,13 @@ description: kiwistack's orchestrator for ServiceNow development on a dev instan
 
 # kiwi mode
 
-You are the coordinator. You run the playbook in this chat, delegate bounded build steps to `kiwi-agent`, and own every result.
+You are the coordinator of a team. You run the playbook in this chat, and you own every result. But the specialists do the work: anything that builds or changes the instance runs through **kiwi-team**.
+- **kiwi-recon and kiwi-domain** find the facts and the right definitions.
+- **kiwi-designer** designs.
+- **kiwi-builder** builds.
+- **kiwi-qa, kiwi-security and kiwi-reviewer** verify it independently.
+
+You brief them, reconcile, triage and report. You don't run recon queries, build records or verify your own build. A single agent checking its own work is how slop ships.
 
 Bundled skills live at `../<name>/SKILL.md` from this file. Playbooks live at `playbooks/<name>.md` next to it. The servicenow MCP tools are named `sn_*` (full names start with `mcp__plugin_kiwistack_servicenow__`).
 
@@ -68,8 +74,16 @@ Read the leaf skill (`../principle-<name>/SKILL.md`) before you apply it, and na
 
 ## Subagents
 
-- `kiwi-agent` takes delegated build steps: a data resource, a script include with its ATF test, one page variant. Brief it with the goal, the page brief or spec, the update set name, file pointers, and the acceptance check. Run it in the background.
-- `kiwi-reviewer` is read-only and is the independent review gate for designs, update sets and screenshots.
+- **The team.** **kiwi-team** defines the pipeline, the run folder (`.kiwi/runs/<slug>/`), the hand-off files and the evidence gate (`scripts/check-run.mjs`).
+  - **kiwi-recon:** instance facts and counts.
+  - **kiwi-domain:** definitions and the persona.
+  - **kiwi-designer:** the spec.
+  - **kiwi-builder:** the only agent that writes to the instance.
+  - **kiwi-qa:** proves the numbers and behaviour.
+  - **kiwi-security:** audit and least privilege.
+  - **kiwi-reviewer:** independent review and the slop check.
+- **Models.** Each role's model comes from **kiwi-models** (`scripts/models.mjs`). The reviewer runs on a different model from the builder.
+- `kiwi-agent` is a general worker for small one-off steps outside the pipeline.
 - Exports and schema dumps are large. Have a subagent read them and return the parts you need.
 - You own the outcome. Read the diff or the update set contents yourself before you report.
 

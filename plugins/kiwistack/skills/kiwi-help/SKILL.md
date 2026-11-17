@@ -15,6 +15,8 @@ Most requests start with `/kiwi-mode` followed by what you want in plain words. 
 | Fix something broken | `/kiwi-mode X is wrong when Y. Repro and fix.` |
 | Understand how something works on your instance | `/kiwi-mode how does ... work?` or `/sn-recon` |
 | Review an update set, a diff or a page | `/kiwi-mode review update set kiwi/...` or `/sn-interrogate` |
+| Run a build as a specialist team (recon, domain, design, build, QA, security, review) | `/kiwi-team` (`/kiwi-mode` uses it for every build) |
+| See or change which model each team role uses | `/kiwi-models` (for example "use opus for QA for this project") |
 | Audit any app for security and hygiene, including apps Studio's Build Agent made | `/kiwi-mode audit the app x_...` (Audit playbook, `sn_app_audit`) |
 | Get an attention board page in about a minute | `/kiwi-mode build a page showing the <records> that need attention` (`sn_ux_build_page`) |
 | Get work ready to move to test | `/kiwi-mode release prep for kiwi/...` |

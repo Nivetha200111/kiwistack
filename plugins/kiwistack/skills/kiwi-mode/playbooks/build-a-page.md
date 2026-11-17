@@ -2,6 +2,19 @@
 
 A UI Builder page in a Next Experience workspace or app, for any module. Example: "use UI Builder to build a page that shows the HRSD onboarding process".
 
+**Run this playbook through kiwi-team.** Each step's work belongs to a specialist:
+
+| Steps | Agent |
+|-|-|
+| 3 | **kiwi-recon** and **kiwi-domain**, in parallel |
+| 4 and 7 | **kiwi-designer** |
+| 2, 5, 6, 8 and 9 | **kiwi-builder** |
+| 10 | **kiwi-qa** |
+| 11 | **kiwi-security** |
+| 12 | **kiwi-reviewer**, on a different model from the builder |
+
+You do steps 1, 13 and 14, triage the findings, and run the evidence gate (`scripts/check-run.mjs`) before you reply.
+
 There are two paths:
 - **Fast path** (steps 4 to 6): when the page is an attention board, meaning summary cards, a list of what needs attention with the reason on each row, and a breakdown by group. That covers most "show the X that need attention" requests in any module. The compiler builds it in about a minute.
 - **Template path** (steps 7 to 9): for every other shape.

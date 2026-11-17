@@ -3,6 +3,8 @@ import { SYS_ID } from './client.mjs';
 import { GuardError, CHILD_OF_METADATA } from './guard.mjs';
 import { readJsonFile, valuesFromFiles, writeJsonFile } from './files.mjs';
 import { exportBundle, orderRecords, remapIds, stripSystemFields, validateBundle } from './bundle.mjs';
+import { auditApp } from './audit.mjs';
+import { compileBoard, normalizeSpec } from './pagegen.mjs';
 
 const instanceProp = {
   instance: { type: 'string', description: 'Instance profile name from ~/.kiwistack/config.json. Omit for the default.' },
@@ -516,6 +518,106 @@ export const TOOLS = [
         results,
         ...(await strays()),
       };
+    },
+  },
+  {
+    name: 'sn_ux_build_page',
+    description: 'Compile a short page spec into a complete workspace page and write it: route, screen type, screen, page, client scripts, a render include, the open-record event and an optional role audience. The page is an "attention board": summary cards per reason, a list of the records that need attention with the reason on each row, and a breakdown by group, with loading, empty, error and no-access states. Data comes from the OOTB GraphQL record query, so no new ACL is needed. Rebuilding the same route updates the same records. Use this instead of hand-editing an exported bundle whenever the page fits.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...instanceProp,
+        ...approvedProp,
+        spec: {
+          type: 'object',
+          description: 'name, route (url segment), title, subtitle, table, query (encoded), noun, reasons: [{key, label, kind: empty|equals|sla_breached, field, value, color: critical|high|warning|info, hint, icon, row_label}], optional fields {number, summary, owner, group, opened}, breakdown_heading, list_heading, summary_label, summary_hint, breakdown_reasons, empty {heading, body}, no_access {heading, body}, limit.',
+        },
+        spec_path: { type: 'string', description: 'Absolute path of a spec JSON file, instead of spec.' },
+        experience: { type: 'string', default: 'sow', description: 'Workspace URL path the page joins, e.g. sow for Service Operations Workspace.' },
+        audience_role: { type: 'string', description: 'Role name (e.g. x_acme_app.lead) that may see the page. It must exist; create it with sn_upsert first.' },
+        dry_run: { type: 'boolean', default: false },
+        out_path: { type: 'string', description: 'Absolute .json path to also write the compiled bundle to.' },
+      },
+    },
+    async handler(a, ctx) {
+      const started = Date.now();
+      const { instance, client, guard } = ctx;
+      if (Boolean(a.spec) === Boolean(a.spec_path)) throw new GuardError('BAD_INPUT', 'Give exactly one of spec or spec_path.');
+      const { spec, errors } = normalizeSpec(a.spec_path ? readJsonFile(a.spec_path, 'spec_path') : a.spec);
+      if (errors.length) return { status: 'invalid_spec', errors };
+      await guard.assertInstance();
+      const S = await guard.scopeId();
+      const exp = a.experience || 'sow';
+      if (!/^[a-z0-9_-]+$/.test(exp)) throw new GuardError('BAD_INPUT', `"${exp}" is not a workspace path.`);
+      const registry = (await client.query('sys_ux_page_registry', { query: `path=${exp}`, fields: 'sys_id,title,admin_panel,root_macroponent', limit: 1 }))[0];
+      if (!registry?.admin_panel || !registry?.root_macroponent) return { status: 'no_experience', message: `No workspace with path "${exp}" (sys_ux_page_registry) on this instance.` };
+
+      let roleId;
+      if (a.audience_role) {
+        roleId = (await client.query('sys_user_role', { query: `name=${a.audience_role}`, fields: 'sys_id', limit: 1 }))[0]?.sys_id;
+        if (!roleId) return { status: 'no_role', message: `Role ${a.audience_role} does not exist. Create it with sn_upsert on sys_user_role first.` };
+      }
+
+      // Reuse the live sys_ids when this route already exists in our scope, so a rebuild updates in place.
+      const ids = {};
+      const route = (await client.query('sys_ux_app_route', { query: `app_config=${registry.admin_panel}^route_type=${spec.route}`, fields: 'sys_id,screen_type,sys_scope', limit: 1 }))[0];
+      if (route && route.sys_scope !== S) return { status: 'route_taken', message: `Route "${spec.route}" already exists in ${registry.title} and belongs to another application. Pick another route.` };
+      if (route) {
+        Object.assign(ids, { route: route.sys_id, screen_type: route.screen_type });
+        const screen = (await client.query('sys_ux_screen', { query: `screen_type=${route.screen_type}^sys_scope=${S}`, fields: 'sys_id,macroponent', limit: 1 }))[0];
+        if (screen) Object.assign(ids, { screen: screen.sys_id, macroponent: screen.macroponent });
+        if (ids.macroponent) {
+          const suffix = { cs_apply: 'apply data', cs_failed: 'show load error', cs_refresh: 'refresh data', cs_filter: 'filter by summary card', cs_group: 'filter by group', cs_showall: 'clear filters', cs_open: 'open record' };
+          for (const cs of await client.query('sys_ux_client_script', { query: `macroponent=${ids.macroponent}`, fields: 'sys_id,name', limit: 50 })) {
+            const key = Object.keys(suffix).find((k) => cs.name === `${spec.name} - ${suffix[k]}`);
+            if (key) ids[key] = cs.sys_id;
+          }
+        }
+        if (ids.screen) {
+          const link = (await client.query('sys_ux_applicability_m2m_screen', { query: `screen=${ids.screen}^sys_scope=${S}`, fields: 'sys_id,applicability', limit: 1 }))[0];
+          if (link) Object.assign(ids, { audience_link: link.sys_id, audience: link.applicability });
+        }
+      }
+      const probe = compileBoard(spec, { scope: instance.scope, appConfig: registry.admin_panel, shell: registry.root_macroponent, roleId, ids, host: instance.host });
+      if (route) {
+        const inc = (await client.query('sys_ux_client_script_include', { query: `api_name=${probe.render_api}^sys_scope=${S}`, fields: 'sys_id', limit: 1 }))[0];
+        const evt = (await client.query('sys_ux_event', { query: `event_name=${probe.event_name}^sys_scope=${S}`, fields: 'sys_id', limit: 1 }))[0];
+        if (inc) ids.render_include = inc.sys_id;
+        if (evt) ids.event = evt.sys_id;
+      }
+      const { bundle } = compileBoard(spec, { scope: instance.scope, appConfig: registry.admin_panel, shell: registry.root_macroponent, roleId, ids: { ...probe.ids, ...ids }, host: instance.host });
+      if (a.out_path) writeJsonFile(a.out_path, bundle);
+
+      const upsert = await TOOLS.find((t) => t.name === 'sn_ux_upsert_page').handler({ bundle, dry_run: a.dry_run, user_approved: a.user_approved }, ctx);
+      return {
+        status: upsert.status,
+        page_url: `https://${instance.host}/now/${exp}/${spec.route}`,
+        rebuilt: Boolean(route),
+        records: bundle.records.length,
+        elapsed_ms: Date.now() - started,
+        ...(a.out_path ? { bundle_path: a.out_path } : {}),
+        upsert,
+      };
+    },
+  },
+  {
+    name: 'sn_app_audit',
+    description: 'Read-only security and hygiene audit of any scoped app, whoever built it (kiwistack, Studio Build Agent, a person). Checks REST endpoints any employee can call, client-callable script includes without role checks, tables without ACLs, data brokers without ACLs, risky cross-scope privileges, app roles that contain admin/itil, missing ATF tests and changes stuck in the Default update set. Returns findings ranked by severity, each with the record and the fix.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...instanceProp,
+        scope: { type: 'string', description: 'App scope to audit, e.g. x_acme_app. Defaults to the configured target scope.' },
+        out_path: { type: 'string', description: 'Absolute .json path to also write the full report to.' },
+      },
+    },
+    async handler(a, { instance, client, guard }) {
+      await guard.assertInstance();
+      const scope = a.scope || instance.scope;
+      if (!/^[a-z0-9_]+$/.test(scope)) throw new GuardError('BAD_INPUT', `"${scope}" is not a valid scope name.`);
+      const report = await auditApp(client, { scope });
+      if (a.out_path) report.written_to = { path: a.out_path, bytes: writeJsonFile(a.out_path, report) };
+      return report;
     },
   },
 ];

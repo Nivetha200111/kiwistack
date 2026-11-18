@@ -1,6 +1,7 @@
 ---
 name: unslop
 description: Writing rules that strip AI tells from what kiwistack writes - page text, report.md, findings, PR descriptions, release notes and posts. Use before any text reaches a user, when kiwi-slop-checker reviews a report, or for /unslop.
+disable-model-invocation: true
 ---
 
 # unslop

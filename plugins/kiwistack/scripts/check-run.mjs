@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Evidence gate for a kiwi-team run folder. A run is not done until this passes.
+// Proof gate for a kiwi-team run folder. A run is not done until this passes.
 // Usage: node check-run.mjs <runDir>   (exit 0 = pass, 1 = fail; prints each problem)
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -125,5 +125,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.log(`NOT DONE: ${problems.length} problem(s)\n- ${problems.join('\n- ')}`);
     process.exit(1);
   }
-  console.log('Evidence gate passed.');
+  console.log('Proof gate passed.');
 }

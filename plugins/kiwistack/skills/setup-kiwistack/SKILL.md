@@ -1,6 +1,7 @@
 ---
 name: setup-kiwistack
 description: One-time kiwistack setup. Connects the servicenow MCP server to a dev instance over OAuth, sets the target app scope, and checks the connection. Use for /setup-kiwistack, when a sn_* tool says the config is missing, or when adding another instance.
+disable-model-invocation: true
 ---
 
 # Set up kiwistack
@@ -66,9 +67,4 @@ kiwistack only talks to instances listed in `~/.kiwistack/config.json` (`%USERPR
 
 ## Troubleshooting
 
-- `OAuth ... failed (HTTP 401)`. Wrong client id or secret, the grant isn't enabled, or no application user is set for `client_credentials`.
-- `NO_SCOPE`. The app scope doesn't exist on the instance.
-- `PRODUCTION`. The instance reports itself as production. kiwistack will not use it.
-- `Could not resolve the current user`. The acting user can't read `sys_user`, or the instance blocks `javascript:` in queries. Give the user `sys_user` read access.
-
-Tokens are cached in `~/.kiwistack/tokens.json`. Delete that file to force a fresh login.
+When a step fails, read `references/troubleshooting.md`.

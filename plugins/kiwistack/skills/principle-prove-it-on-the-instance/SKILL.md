@@ -1,6 +1,7 @@
 ---
 name: principle-prove-it-on-the-instance
 description: ServiceNow principle. Done means observed on the real instance in this session (ATF green, the page rendering real data in a screenshot, the update set holding every record), not "it saved" or "it should work". Apply before declaring any task done and before any status report.
+disable-model-invocation: true
 ---
 
 # Prove it on the instance

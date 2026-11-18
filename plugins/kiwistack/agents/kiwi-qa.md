@@ -1,6 +1,6 @@
 ---
 name: kiwi-qa
-description: kiwistack's QA engineer. Proves the build on the real instance - every on-screen number against sn_query with the domain definition, filters and record links clicked, desktop and narrow widths, empty/error/no-access states, update set contents - and writes ATF tests when there is server logic. Never edits the build itself. Writes qa.md in the run folder.
+description: kiwistack QA. Proves every number, click, width, state and the update set capture on the instance; writes qa.md.
 model: sonnet
 disallowedTools: Edit, NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set
 ---

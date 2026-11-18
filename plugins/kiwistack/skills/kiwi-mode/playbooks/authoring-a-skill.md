@@ -1,9 +1,11 @@
 # Authoring a skill
 
-Writing or changing a kiwistack skill, playbook, principle or module reference.
+Writing or changing a kiwistack skill, agent, playbook, principle or reference. The checklist follows Matt Pocock's talk "Building Great Agent Skills: The Missing Manual": trigger, structure, steering, pruning. `node tools/lint-skills.mjs` enforces the parts a script can check.
 
-1. Restate what behaviour should change and the run that showed the gap. Check: a concrete example request and what went wrong.
-2. Find the right home. A rule that applies everywhere is a principle. A procedure is a playbook step. Facts about a module go in `sn-modules/references`. Facts about UI Builder records go in `ui-builder/references`. Check: you are editing one place, not adding a duplicate.
-3. Prefer structure over text (**reflect**): if the lesson can be a guard in the MCP server, a test or a linter rule, do that.
-4. Write it short. Frontmatter `name` matches the folder, `description` says when to use it. Link other skills with relative paths. Check: `node tools/lint-skills.mjs` passes.
-5. Replay the example request against the dev instance, or describe the replay if you can't run it. Check: the behaviour changed.
+1. **The gap.** Restate the behaviour that should change and the run that showed it. Check: a concrete example request and what went wrong.
+2. **Structure before text** (**reflect**). If the lesson can be a guard in the MCP server, a gate check or a lint rule, do that instead of adding words. Check: you named why a check couldn't do it.
+3. **Trigger.** Only `kiwi-mode` is model-invoked, because every model-invoked description loads into every session. A new skill sets `disable-model-invocation: true` and is opened by path from the step that needs it. Making one model-invoked needs a reason in `MODEL_INVOKED` in the linter. Check: lint passes.
+4. **Home and branches.** One home per fact: a rule for every task is a principle, a procedure is a playbook step, module facts go in `sn-modules/references`, record facts in `ui-builder/references`. In the skill, write the steps, then the reference they need. Material only one branch uses goes in `references/` behind a pointer that says when to open it. Check: `SKILL.md` stays under the lint's word budget, and nothing is said in two places.
+5. **Steering.** Reuse kiwistack's leading words instead of new phrasings: **proof** (no proof, no claim), **captured** (in the `kiwi/` update set), **slop**, **persona**, **run folder**, **attention board**. If one step needs more legwork than the agent gives it, split it into its own skill or agent so the agent can't see the next step. That's why recon and domain run before design. Check: the leading words show up in a test run's reasoning or output.
+6. **Pruning.** Run a deletion test on every paragraph: if the agent would do the same without it, delete it. Remove sediment (stale notes, rules for tools that changed) and anything another file already says. Check: the diff deletes at least as much as it adds, or you can say why not.
+7. **Replay.** Run the example request against the dev instance, or describe the replay if you can't run it. Check: the behaviour changed.

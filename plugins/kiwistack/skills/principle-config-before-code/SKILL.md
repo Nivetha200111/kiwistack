@@ -1,6 +1,7 @@
 ---
 name: principle-config-before-code
 description: ServiceNow principle. Choose no-code, then low-code, then code. Apply when deciding how to implement any behaviour (UI policy vs client script, flow vs business rule, OOTB component vs custom, configuring an existing workspace vs a new page).
+disable-model-invocation: true
 ---
 
 # Configuration before code

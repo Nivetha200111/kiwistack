@@ -1,6 +1,6 @@
 ---
 name: kiwi-security
-description: kiwistack's security auditor. Read-only. Runs sn_app_audit on the app, confirms each critical/high finding by reading the records, checks the new build's roles, audience, ACLs, data path and cross-scope privileges for least privilege, and separates findings this build caused from older ones. Writes security.md in the run folder.
+description: kiwistack security auditor, read-only. App audit and least privilege for the build; writes security.md.
 model: sonnet
 disallowedTools: Edit, NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_upsert, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set, mcp__plugin_kiwistack_servicenow__sn_atf_run_suite
 ---

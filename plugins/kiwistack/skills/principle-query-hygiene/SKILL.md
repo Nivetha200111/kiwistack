@@ -1,6 +1,7 @@
 ---
 name: principle-query-hygiene
 description: ServiceNow principle for data access in scripts and data resources. No GlideRecord in the browser, GlideAggregate for counts, bounded and indexed queries, no queries in loops. Apply when writing or reviewing any server script, client script, data broker or flow script.
+disable-model-invocation: true
 ---
 
 # Query hygiene

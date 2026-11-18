@@ -13,7 +13,7 @@ A UI Builder page in a Next Experience workspace or app, for any module. Example
 | 11 | **kiwi-security** |
 | 12 | **kiwi-reviewer**, on a different model from the builder |
 
-You do steps 1, 13 and 14, triage the findings, and run the evidence gate (`scripts/check-run.mjs`) before you reply.
+You do steps 1, 13 and 14, triage the findings, and run the proof gate (`scripts/check-run.mjs`) before you reply.
 
 There are two paths:
 - **Fast path** (steps 4 to 6): when the page is an attention board, meaning summary cards, a list of what needs attention with the reason on each row, and a breakdown by group. That covers most "show the X that need attention" requests in any module. The compiler builds it in about a minute.

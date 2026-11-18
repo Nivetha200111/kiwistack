@@ -1,6 +1,7 @@
 ---
 name: sn-verify
 description: Proves ServiceNow work on the real instance. Runs the ATF suite, opens pages in the built-in browser and screenshots them at desktop and narrow widths, exercises the behaviour once, and checks the update set captured everything. Use before declaring any kiwistack task done, or for /sn-verify.
+disable-model-invocation: true
 ---
 
 # sn verify

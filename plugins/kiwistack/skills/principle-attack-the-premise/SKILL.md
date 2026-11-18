@@ -1,6 +1,7 @@
 ---
 name: principle-attack-the-premise
 description: Engineering principle adapted from pstack. When two fixes built on the same assumption have failed, write the assumption down and test it directly before trying a third. Apply during bug fixes and whenever a page, rule or flow keeps not doing what you expect.
+disable-model-invocation: true
 ---
 
 # Attack the premise

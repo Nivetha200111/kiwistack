@@ -1,6 +1,7 @@
 ---
 name: sn-interrogate
 description: Adversarial independent review of ServiceNow work before it is called done. Runs kiwi-reviewer agents with different lenses (correctness, platform and security, design) over an update set, a Fluent diff, a design or page screenshots, then triages the findings. Use as the review gate in every kiwistack build playbook, or for /sn-interrogate.
+disable-model-invocation: true
 ---
 
 # sn interrogate

@@ -1,6 +1,7 @@
 ---
 name: client-scripting
 description: Writing and reviewing ServiceNow client-side logic - UI policies, client scripts (onLoad, onChange, onSubmit, onCellEdit), catalog client scripts, g_form, g_user, g_scratchpad and GlideAjax - for forms in Core UI and workspaces. Use whenever kiwistack changes form behaviour.
+disable-model-invocation: true
 ---
 
 # Client scripting

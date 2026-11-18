@@ -1,6 +1,7 @@
 ---
 name: principle-never-modify-ootb
 description: ServiceNow principle. Never edit base-system (OOTB) or other apps' records in place; extend, override, copy or configure instead. Apply whenever a fix or feature points at a record your scope does not own, or a tool returns OUT_OF_SCOPE.
+disable-model-invocation: true
 ---
 
 # Never modify OOTB

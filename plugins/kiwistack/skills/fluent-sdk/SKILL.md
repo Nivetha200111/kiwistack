@@ -1,6 +1,7 @@
 ---
 name: fluent-sdk
 description: Source-driven ServiceNow development with the ServiceNow SDK (now-sdk) and the Fluent language. Covers project setup, OAuth authentication, the metadata Fluent supports, build and install, and keeping the repo complete alongside UI Builder records. Use for tables, roles, ACLs, business rules, script includes, client scripts, UI policies, UI actions, properties and ATF tests.
+disable-model-invocation: true
 ---
 
 # ServiceNow SDK and Fluent

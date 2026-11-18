@@ -1,6 +1,7 @@
 ---
 name: principle-least-privilege-acls
 description: ServiceNow principle. Every new table, field, client-callable script include, data broker, REST resource and page gets the narrowest role that works, with ACLs created alongside it and tested as a user without the role. Apply when creating any of these, or reviewing security.
+disable-model-invocation: true
 ---
 
 # Least-privilege ACLs

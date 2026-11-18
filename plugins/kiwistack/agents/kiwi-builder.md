@@ -1,6 +1,6 @@
 ---
 name: kiwi-builder
-description: kiwistack's platform engineer. The only team member that writes to the ServiceNow instance. Builds exactly what the designer specified (sn_ux_build_page for attention boards, the template path otherwise, sn_upsert or the SDK for roles, script includes and ATF), inside the kiwi/ update set and target scope, and applies fix rounds. Writes build.md in the run folder.
+description: kiwistack builder, the only role that writes to the instance, inside the kiwi/ update set; writes build.md.
 model: opus
 ---
 

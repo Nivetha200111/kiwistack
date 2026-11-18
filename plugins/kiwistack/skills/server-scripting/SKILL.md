@@ -1,6 +1,7 @@
 ---
 name: server-scripting
 description: Writing and reviewing ServiceNow server-side code - business rules, script includes, data broker scripts, scheduled jobs and scripted REST - with GlideRecord, GlideAggregate, GlideQuery, GlideSystem and the scoped APIs. Use whenever kiwistack writes or reviews server code.
+disable-model-invocation: true
 ---
 
 # Server scripting

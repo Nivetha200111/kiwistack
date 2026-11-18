@@ -1,6 +1,7 @@
 ---
 name: sn-architect
 description: Parallel design exploration for ServiceNow work before building. Produces two or three competing designs (data model, where logic lives, or page layout with data bindings), scores them against the principles and the design rubric, and picks one. Use for any nontrivial feature, page or flow, or when the user says "design this first".
+disable-model-invocation: true
 ---
 
 # sn architect

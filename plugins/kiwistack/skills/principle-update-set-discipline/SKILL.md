@@ -1,6 +1,7 @@
 ---
 name: principle-update-set-discipline
 description: ServiceNow principle. One kiwi/<task> update set per task, never Default, every metadata write checked as captured, nothing completed or moved without the user. Apply before the first write of any task and whenever a write reports captured_in_update_set false.
+disable-model-invocation: true
 ---
 
 # Update set discipline

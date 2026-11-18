@@ -32,10 +32,15 @@ plugins/kiwistack/
   agents/kiwi-*.md           the team: recon, domain, designer, builder, qa, security, reviewer, slop checker
   mcp/servicenow/            guarded ServiceNow MCP server (Node, zero dependencies)
   hooks/                     forces a permission prompt for deletes and approved out-of-scope writes
-  scripts/                   preflight (approval hook check), evidence gate, model resolution
-tools/lint-skills.mjs        checks skills, links and tool names
+  scripts/                   preflight (approval hook check), proof gate, model resolution
+tools/lint-skills.mjs        checks skills, links, tool names, triggers, size and duplication
 tools/spike-ux-roundtrip.mjs phase 1 spike: clone a UI Builder page through the API and diff it
 ```
+
+**How the skills are written.** They follow the checklist in Matt Pocock's talk "Building Great Agent Skills: The Missing Manual", and the linter enforces it:
+- **Trigger.** Only `kiwi-mode` is model-invoked. Every other skill is user-invoked (`/name`) and opened by path from the step that needs it. Claude Code keeps a user-invoked skill's description out of context, so a session carries about 1,300 characters of kiwistack descriptions (kiwi-mode plus the agents) instead of about 12,000. (`claude plugin details` still estimates every description as always-on.)
+- **Structure.** Each `SKILL.md` stays under 900 words. Material only one branch needs, such as UI Builder's template path, sits in `references/` behind a pointer.
+- **Pruning.** A long sentence that appears in two files fails the lint.
 
 **How it builds.**
 - **SDK first.** Anything the ServiceNow SDK (Fluent) covers is source code in git: tables, ACLs, business rules, script includes, client scripts and ATF tests.
@@ -115,7 +120,7 @@ The MCP server enforces these. They don't rely on prompts alone.
 ## Install
 
 ```bash
-/plugin marketplace add <path-or-git-url-of-this-repo>
+/plugin marketplace add Nivetha200111/kiwistack
 ```
 
 ```bash
@@ -123,6 +128,8 @@ The MCP server enforces these. They don't rely on prompts alone.
 ```
 
 Then run `/setup-kiwistack` to connect your dev instance over OAuth.
+
+**Cost.** A team run spends a lot of tokens: eight or nine agents re-checking each other. The HRSD onboarding build took 156 minutes. Use `/kiwi-models` to put roles on cheaper models, and use a single `kiwi-agent` step for small changes.
 
 ## Status
 

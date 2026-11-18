@@ -1,6 +1,7 @@
 ---
 name: sn-modules
 description: Starting maps of ServiceNow modules (HRSD, ITSM, CSM, SPM, IRM/GRC, FSM, CMDB, HAM/SAM) - plugins, core tables and their parents, lifecycles and states, workspaces, and typical page ideas per persona. Use at the start of any module-specific task, before sn-recon confirms the details on the instance.
+disable-model-invocation: true
 ---
 
 # ServiceNow modules

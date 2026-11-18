@@ -55,11 +55,11 @@ function goodRun() {
   return dir;
 }
 
-test('the evidence gate passes a complete run', () => {
+test('the proof gate passes a complete run', () => {
   assert.deepEqual(checkRun(goodRun()), []);
 });
 
-test('the evidence gate blocks missing evidence, unchecked numbers, mismatches, slop and raw names in labels', () => {
+test('the proof gate blocks missing evidence, unchecked numbers, mismatches, slop and raw names in labels', () => {
   const dir = goodRun();
   writeFileSync(join(dir, 'qa.md'), '## Counts\n| card | page | query | match |\n|-|-|-|-|\n| Total | 95 | 54 | mismatch |\n| x | 1 | 1 | yes |\n## States\n## Findings\n');
   writeFileSync(join(dir, 'spec.json'), JSON.stringify({ title: 'cmdb_ci_computer audit', subtitle: 'TODO write subtitle', reasons: [] }));
@@ -77,7 +77,7 @@ test('the evidence gate blocks missing evidence, unchecked numbers, mismatches, 
   assert.match(p2, /Missing spec.json or design.md/);
 });
 
-test('the evidence gate rejects findings without a proof, and accepts them under Not proven', () => {
+test('the proof gate rejects findings without a proof, and accepts them under Not proven', () => {
   const dir = goodRun();
   writeFileSync(join(dir, 'review.md'), "Verdict: don't ship.\n## Findings\n### F1 (must) The count is probably wrong\n- Where: the summary card\n- Fix: re-check it\n");
   writeFileSync(join(dir, 'slop.md'), '## Verdict\nslop found\n## Findings\n- labels look generic\n');
@@ -90,7 +90,7 @@ test('the evidence gate rejects findings without a proof, and accepts them under
   assert.deepEqual(checkRun(dir), []);
 });
 
-test('the evidence gate needs a run start and a capture audit, and an uncaptured result must be handled', () => {
+test('the proof gate needs a run start and a capture audit, and an uncaptured result must be handled', () => {
   const dir = goodRun();
   writeFileSync(join(dir, 'goal.md'), 'Laptop audit page.');
   const qa = (line) => `## Counts\n| card | page | query | match |\n|-|-|-|-|\n| a | 1 | 1 | yes |\n| b | 2 | 2 | yes |\n## States\n## Update set\n${line}\n## Findings\n- none\n`;

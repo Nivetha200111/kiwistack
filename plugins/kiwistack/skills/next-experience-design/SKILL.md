@@ -1,6 +1,7 @@
 ---
 name: next-experience-design
 description: The visual and UX quality bar for every page kiwistack builds in Next Experience (UI Builder, workspaces) - layout, hierarchy, Horizon theme usage, states, copy and accessibility - plus the rubric reviewers score screenshots against. Use when designing, building or reviewing any page, in any module, so it reads as a finished product rather than an admin screen.
+disable-model-invocation: true
 ---
 
 # Next Experience design

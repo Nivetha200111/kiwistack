@@ -1,6 +1,7 @@
 ---
 name: reflect
 description: Captures what a kiwistack run learned so the next run doesn't repeat the mistake, by turning it into structure (a guard, a test, a linter rule) or, failing that, a short edit to the right skill or module reference. Use after a correction from the user, a surprise on the instance, a failed approach, or for /reflect.
+disable-model-invocation: true
 ---
 
 # reflect

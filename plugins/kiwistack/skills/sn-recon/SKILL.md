@@ -1,6 +1,7 @@
 ---
 name: sn-recon
 description: Reads a ServiceNow instance before anyone designs or changes anything. Confirms plugins, tables, fields, states, real data volumes, existing customisations, and the experiences and pages a new UI would live beside. Use at the start of every kiwistack playbook, or for "how does X work on our instance".
+disable-model-invocation: true
 ---
 
 # sn recon

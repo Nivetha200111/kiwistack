@@ -1,6 +1,6 @@
 ---
 name: kiwi-slop-checker
-description: kiwistack's slop checker. Read-only on the instance. Hunts AI slop in a ServiceNow build - generic or placeholder page text, table names shown to users, invented numbers, leftover and duplicate records, commented-to-death or debug-laden scripts, and filler in the report - and proves each finding with a query, a quoted line or a screenshot. Writes slop.md in the run folder. Spawned by kiwi-team in the verify step, on a different model from the builder.
+description: kiwistack slop checker, read-only. Proves generic text, invented numbers, leftovers and script slop; writes slop.md.
 model: sonnet
 disallowedTools: Edit, NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_upsert, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set, mcp__plugin_kiwistack_servicenow__sn_atf_run_suite
 ---

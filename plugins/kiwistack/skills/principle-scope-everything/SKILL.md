@@ -1,6 +1,7 @@
 ---
 name: principle-scope-everything
 description: ServiceNow principle. All kiwistack work lives in the configured scoped application; global changes need the user's approval. Apply when creating any record, choosing where code lives, or when a tool reports a scope mismatch.
+disable-model-invocation: true
 ---
 
 # Scope everything

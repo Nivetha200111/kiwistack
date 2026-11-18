@@ -1,6 +1,7 @@
 ---
 name: atf
 description: Automated Test Framework tests for kiwistack work - writing tests from observable behaviour (preferably in Fluent), structuring suites per app, impersonation tests for ACLs, server-side script steps for data brokers and script includes, and running suites through sn_atf_run_suite. Use when a playbook says to test, reproduce a bug, or prove a change.
+disable-model-invocation: true
 ---
 
 # ATF
@@ -32,7 +33,7 @@ The MCP server treats these rows as part of their step: no approval is needed wh
 
 ## Browser fallback
 
-If you edit a test in the ATF UI, first switch the application picker to your scope and the update set picker to the `kiwi/` set. Otherwise saves land in the app's **Default** set, and switching the application in the browser also resets the update set the MCP server writes to. Afterwards check `sn_instance_info` (`update_set_ok`) and `sn_update_set` action `contents`.
+Only when the MCP server can't build a test. Read `references/browser-fallback.md` first: it sets the scope and update set pickers so the test lands in the `kiwi/` set.
 
 ## Running
 
@@ -46,14 +47,4 @@ If you edit a test in the ATF UI, first switch the application picker to your sc
 
 ## Example: a server-side step for a data broker script include
 
-```js
-(function (outputs, steps, params, stepResult, assertEqual) {
-  var rows = new x_acme_kiwi.OnboardingProgress().forActiveCases({ limit: 10 });
-  assertEqual({ name: 'returns an array', shouldbe: true, value: Array.isArray(rows) });
-  var created = steps('<record insert step sys_id>').record_id;
-  var mine = rows.filter(function (r) { return r.caseId === created; });
-  assertEqual({ name: 'includes the new hire', shouldbe: 1, value: mine.length });
-})(outputs, steps, params, stepResult, assertEqual);
-```
-
-The names here are illustrative. Use the step ids and the script include that the test actually creates.
+A worked example, with the step inputs and the assertion, is in `references/server-step-example.md`. Open it when you write your first server-side step in a task.

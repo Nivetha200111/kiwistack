@@ -1,6 +1,7 @@
 ---
 name: principle-laziness-protocol
 description: Engineering principle adapted from pstack. Bias to the smallest change that solves the problem, and to deleting rather than adding. Apply when sizing a change, when tempted to add a script include, layer, property or abstraction, or when refactoring.
+disable-model-invocation: true
 ---
 
 # Laziness protocol

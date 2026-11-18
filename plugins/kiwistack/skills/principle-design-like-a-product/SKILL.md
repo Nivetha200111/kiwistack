@@ -1,6 +1,7 @@
 ---
 name: principle-design-like-a-product
 description: ServiceNow principle for any UI kiwistack builds. A page answers one persona's main question at a glance and looks like a finished product, not an admin list with a header. Apply to every UI Builder page, workspace view or portal surface, in any module.
+disable-model-invocation: true
 ---
 
 # Design like a product

@@ -1,6 +1,6 @@
 ---
 name: kiwi-recon
-description: kiwistack's instance analyst. Read-only. Establishes the facts a ServiceNow task depends on: which plugins, tables, fields and workspaces really exist, real record counts for each candidate filter, the data that is actually populated, and the traps (silently ignored fields, subclasses in a parent table, empty fields). Spawned by kiwi-team in parallel with kiwi-domain; writes recon.md in the run folder.
+description: kiwistack instance analyst, read-only. Real plugins, tables, fields, counts and traps for a task; writes recon.md.
 model: sonnet
 disallowedTools: Edit, NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_upsert, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set, mcp__plugin_kiwistack_servicenow__sn_atf_run_suite
 ---

@@ -1,6 +1,6 @@
 ---
 name: kiwi-designer
-description: kiwistack's UX designer for Next Experience pages. Turns the recon and domain briefs into a page design and, for attention boards, a ready-to-compile sn_ux_build_page spec, checked against the design rubric on paper. Writes design.md and spec.json in the run folder; never writes to the instance.
+description: kiwistack page designer, files only. Writes design.md and the sn_ux_build_page spec, checked against the rubric.
 model: opus
 disallowedTools: NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_upsert, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set, mcp__plugin_kiwistack_servicenow__sn_atf_run_suite
 ---

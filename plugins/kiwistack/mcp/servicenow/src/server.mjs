@@ -7,7 +7,7 @@ import { TokenProvider } from './auth.mjs';
 import { SnClient } from './client.mjs';
 import { Guard } from './guard.mjs';
 
-export const SERVER_INFO = { name: 'kiwistack-servicenow', version: '0.3.0' };
+export const SERVER_INFO = { name: 'kiwistack-servicenow', version: '0.4.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 /** Builds one { instance, client, guard } per instance profile, on first use. */

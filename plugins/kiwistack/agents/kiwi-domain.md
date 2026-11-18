@@ -1,6 +1,6 @@
 ---
 name: kiwi-domain
-description: kiwistack's ServiceNow process expert. Read-only. Turns the user's business question into an exact data definition for the module (ITSM, HRSD, CSM, ITAM/CMDB, SPM, IRM, FSM), challenges vague words ("laptop", "at risk", "leaver", "overdue"), names the persona and the decision they make, and lists the edge cases a naive build would get wrong. Spawned by kiwi-team in parallel with kiwi-recon; writes domain.md in the run folder.
+description: kiwistack process expert, read-only. Turns the business question into exact definitions and edge cases; writes domain.md.
 model: opus
 disallowedTools: Edit, NotebookEdit, mcp__plugin_kiwistack_servicenow__sn_upsert, mcp__plugin_kiwistack_servicenow__sn_delete, mcp__plugin_kiwistack_servicenow__sn_ux_upsert_page, mcp__plugin_kiwistack_servicenow__sn_ux_build_page, mcp__plugin_kiwistack_servicenow__sn_update_set, mcp__plugin_kiwistack_servicenow__sn_atf_run_suite
 ---

@@ -1,6 +1,7 @@
 ---
 name: flow-designer
 description: Designing and building ServiceNow Flow Designer flows, subflows and custom actions, including lifecycle orchestration (HRSD onboarding, request fulfilment, change approvals) and calling subflows from scripts. Use for any automation with triggers, waits, approvals or integrations.
+disable-model-invocation: true
 ---
 
 # Flow Designer

@@ -78,6 +78,48 @@ for (const file of [...walk(skillsDir), ...walk(agentsDir)]) {
   }
 }
 
+// The skill checklist from "Building Great Agent Skills: The Missing Manual" (Matt Pocock), as checks.
+// 1. Trigger. Every model-invoked skill adds its description to every session (context load), so
+//    only the entry point is model-invoked. Any other skill must set disable-model-invocation.
+const MODEL_INVOKED = new Set(['kiwi-mode']);
+// 2. Structure. SKILL.md stays small; material only one branch needs goes behind a pointer in references/.
+const SKILL_WORDS = 900;
+const DESC = { modelSkill: 350, agent: 160 };
+let alwaysOn = 0;
+for (const name of skillNames) {
+  const file = join(skillsDir, name, 'SKILL.md');
+  const text = readFileSync(file, 'utf8');
+  const fm = frontmatter(file, text);
+  const userOnly = fm['disable-model-invocation'] === 'true';
+  if (MODEL_INVOKED.has(name)) {
+    if (userOnly) err(file, 'listed as model-invoked in lint-skills.mjs but sets disable-model-invocation');
+    if ((fm.description || '').length > DESC.modelSkill) err(file, `model-invoked description is ${fm.description.length} chars (max ${DESC.modelSkill}): it loads into every session`);
+    alwaysOn += (fm.description || '').length;
+  } else if (!userOnly) {
+    err(file, 'decide the trigger: add "disable-model-invocation: true", or add the skill to MODEL_INVOKED in lint-skills.mjs with a reason');
+  }
+  const words = text.replace(/^---[\s\S]*?\n---/, '').split(/\s+/).filter(Boolean).length;
+  if (words > SKILL_WORDS) err(file, `SKILL.md is ${words} words (max ${SKILL_WORDS}): move material only one branch needs into references/ behind a pointer`);
+}
+for (const n of agentNames) {
+  const file = join(agentsDir, `${n}.md`);
+  const fm = frontmatter(file, readFileSync(file, 'utf8'));
+  if ((fm.description || '').length > DESC.agent) err(file, `agent description is ${fm.description.length} chars (max ${DESC.agent}): it loads into every session`);
+  alwaysOn += (fm.description || '').length;
+}
+// 4. Pruning. One source of truth: a long sentence that appears word for word in two files is duplication.
+const seen = new Map();
+for (const file of [...walk(skillsDir), ...walk(agentsDir)]) {
+  const body = readFileSync(file, 'utf8').replace(/^---[\s\S]*?\n---/, '').replace(/```[\s\S]*?```/g, ' ');
+  for (const raw of body.split(/(?<=[.!?])\s+|\n+/)) {
+    const s = raw.replace(/^[\s>*#-]+|\*\*/g, '').trim();
+    if (s.split(/\s+/).length < 14) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key) && seen.get(key) !== file) err(file, `duplicates a sentence in ${relative(root, seen.get(key))}: "${s.slice(0, 70)}..."`);
+    else seen.set(key, file);
+  }
+}
+
 const kiwiMode = readFileSync(join(skillsDir, 'kiwi-mode', 'SKILL.md'), 'utf8');
 for (const pb of readdirSync(join(skillsDir, 'kiwi-mode', 'playbooks'))) {
   if (!kiwiMode.includes(`playbooks/${pb}`)) err(join(skillsDir, 'kiwi-mode', 'playbooks', pb), 'playbook is not listed in kiwi-mode');
@@ -88,4 +130,4 @@ if (errors.length) {
   console.error(`\n${errors.length} problem(s).`);
   process.exit(1);
 }
-console.log(`lint-skills: ${skillNames.size} skills, ${agentNames.size} agents, ${toolNames.size} tools. OK.`);
+console.log(`lint-skills: ${skillNames.size} skills (${MODEL_INVOKED.size} model-invoked), ${agentNames.size} agents, ${toolNames.size} tools. Always-on descriptions: ${alwaysOn} chars. OK.`);

@@ -1,6 +1,7 @@
 ---
 name: kiwi-help
 description: Explains what kiwistack can do and which skill or playbook fits a ServiceNow request. Use for /kiwi-help, "what can kiwistack do", or "which skill should I use for X".
+disable-model-invocation: true
 ---
 
 # kiwi help

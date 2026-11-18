@@ -1,6 +1,7 @@
 ---
 name: principle-guard-the-context-window
 description: Engineering principle adapted from pstack. Keep the coordinator's context for decisions; route bulk reads (page exports, schema dumps, large queries, long logs) to subagents that return summaries. Apply before any read that may return more than a few hundred lines.
+disable-model-invocation: true
 ---
 
 # Guard the context window

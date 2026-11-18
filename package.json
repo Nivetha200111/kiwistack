@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "A pstack-style agent stack for ServiceNow development.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "npm --prefix plugins/kiwistack/mcp/servicenow test && node tools/lint-skills.mjs",

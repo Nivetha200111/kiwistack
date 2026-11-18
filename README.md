@@ -153,3 +153,7 @@ npm test
 ```
 
 This runs the MCP server tests and the skill linter.
+
+## License
+
+MIT. See [LICENSE](LICENSE). kiwistack is a personal project, not affiliated with or endorsed by ServiceNow.

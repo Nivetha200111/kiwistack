@@ -5,5 +5,12 @@
   "author": {
     "name": "kiwistack maintainers"
   },
-  "keywords": ["servicenow", "ui-builder", "fluent", "now-sdk", "atf"]
+  "license": "MIT",
+  "keywords": [
+    "servicenow",
+    "ui-builder",
+    "fluent",
+    "now-sdk",
+    "atf"
+  ]
 }

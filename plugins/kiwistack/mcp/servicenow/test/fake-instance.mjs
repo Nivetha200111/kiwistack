@@ -1,5 +1,5 @@
 // In-memory stand-in for a ServiceNow instance's Table API, OAuth and capture behaviour.
-// Supports the encoded-query operators the server uses: =, !=, IN, STARTSWITH, LIKE, ISNOTEMPTY, ^OR, ORDERBY.
+// Supports the encoded-query operators the server uses: =, !=, >=, <=, IN, STARTSWITH, LIKE, ISNOTEMPTY, ^OR, ORDERBY.
 import { Guard } from '../src/guard.mjs';
 import { SnClient } from '../src/client.mjs';
 import { newSysId } from '../src/bundle.mjs';
@@ -26,9 +26,21 @@ export function makeFakeInstance({ production = false, capture = true, updateSet
     if (!tables.has(name)) tables.set(name, new Map());
     return tables.get(name);
   };
+  // Instance clock in the Table API's UTC format; tests move it with clock.set().
+  const clock = { now: '2026-01-01 00:00:00', set(v) { this.now = v; } };
   const put = (table, rec) => {
     t(table).set(rec.sys_id, { ...rec });
-    if (METADATA_TABLES.includes(table)) t('sys_metadata').set(rec.sys_id, { sys_id: rec.sys_id, sys_class_name: table, sys_scope: rec.sys_scope, sys_name: rec.name || rec.sys_id });
+    if (METADATA_TABLES.includes(table)) {
+      t('sys_metadata').set(rec.sys_id, {
+        sys_id: rec.sys_id,
+        sys_class_name: table,
+        sys_scope: rec.sys_scope,
+        sys_name: rec.name || rec.sys_id,
+        sys_update_name: `${table}_${rec.sys_id}`,
+        sys_updated_on: rec.sys_updated_on || clock.now,
+        sys_updated_by: rec.sys_updated_by || 'kiwi.agent',
+      });
+    }
   };
 
   // schema: every metadata table extends sys_metadata; incident extends task.
@@ -61,6 +73,9 @@ export function makeFakeInstance({ production = false, capture = true, updateSet
     if (!cond || cond.startsWith('ORDERBY')) return true;
     let m;
     if ((m = cond.match(/^(\w+)ISNOTEMPTY$/))) return Boolean(rec[m[1]]);
+    // Date-times in the API's "YYYY-MM-DD HH:MM:SS" form compare correctly as strings.
+    if ((m = cond.match(/^(\w+)>=(.*)$/))) return String(rec[m[1]] ?? '') >= m[2];
+    if ((m = cond.match(/^(\w+)<=(.*)$/))) return String(rec[m[1]] ?? '') <= m[2];
     if ((m = cond.match(/^(\w+)IN(.*)$/))) return m[2].split(',').includes(String(rec[m[1]] ?? ''));
     if ((m = cond.match(/^(\w+)STARTSWITH(.*)$/))) return String(rec[m[1]] ?? '').startsWith(m[2]);
     if ((m = cond.match(/^(\w+)LIKE(.*)$/))) return String(rec[m[1]] ?? '').includes(m[2]);
@@ -152,7 +167,7 @@ export function makeFakeInstance({ production = false, capture = true, updateSet
   const tokens = { token: async () => 'token', invalidate() {} };
   const client = new SnClient({ host: instance.host, tokens, fetchImpl });
   const guard = new Guard({ instance, client });
-  return { tables, put, t, fetchImpl, calls, instance, client, guard, ctx: { instance, client, guard } };
+  return { tables, put, t, clock, fetchImpl, calls, instance, client, guard, ctx: { instance, client, guard } };
 }
 
 /** Adds an in-progress update set for the target scope and makes it current. */

@@ -7,7 +7,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const DEFAULTS = { recon: 'sonnet', domain: 'opus', designer: 'opus', builder: 'opus', qa: 'sonnet', security: 'sonnet', reviewer: 'opus' };
+export const DEFAULTS = { recon: 'sonnet', domain: 'opus', designer: 'opus', builder: 'opus', qa: 'sonnet', security: 'sonnet', reviewer: 'opus', slop: 'sonnet' };
 export const MODELS = new Set(['sonnet', 'opus', 'haiku', 'fable', 'inherit']);
 export const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 

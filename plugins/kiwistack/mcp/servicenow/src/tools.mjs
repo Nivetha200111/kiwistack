@@ -34,6 +34,70 @@ function assertSysId(id) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** The Table API's own date-time format. Queries compare it in the same zone the API returns (UTC). */
+const SN_DATETIME = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const chunks = (list, n) => Array.from({ length: Math.ceil(list.length / n) }, (_, i) => list.slice(i * n, i * n + n));
+
+/**
+ * Lists every metadata record in the target scope changed in [since, until] and checks each one is
+ * captured in the given update set, by its sys_update_name (the name the instance writes into
+ * sys_update_xml). Writes made outside the MCP server (the SDK, the browser, another run) show up here.
+ */
+export async function captureAudit(client, { scopeId, updateSetId, since, until, limit = 2000 }) {
+  let q = `sys_scope=${scopeId}^sys_updated_on>=${since}`;
+  if (until) q += `^sys_updated_on<=${until}`;
+  const changed = await client.query('sys_metadata', {
+    query: q,
+    fields: 'sys_id,sys_class_name,sys_name,sys_update_name,sys_updated_on,sys_updated_by',
+    limit,
+    orderBy: 'sys_updated_on',
+  });
+  const updateName = (r) => r.sys_update_name || `${r.sys_class_name}_${r.sys_id}`;
+  const inSet = new Set();
+  for (const part of chunks(changed.map(updateName), 50)) {
+    const rows = await client.query('sys_update_xml', { query: `update_set=${updateSetId}^nameIN${part.join(',')}`, fields: 'name', limit: 1000 });
+    for (const r of rows) inSet.add(r.name);
+  }
+  const missing = changed.filter((r) => !inSet.has(updateName(r)));
+  // Say where each missing record went instead: another update set, or none at all.
+  const elsewhere = new Map();
+  for (const part of chunks(missing.map(updateName), 50)) {
+    const rows = await client.query('sys_update_xml', { query: `nameIN${part.join(',')}`, fields: 'name,update_set', limit: 1000 });
+    for (const r of rows) elsewhere.set(r.name, [...(elsewhere.get(r.name) || []), r.update_set]);
+  }
+  const setIds = [...new Set([...elsewhere.values()].flat())];
+  const setNames = new Map();
+  for (const part of chunks(setIds, 50)) {
+    for (const s of await client.query('sys_update_set', { query: `sys_idIN${part.join(',')}`, fields: 'sys_id,name', limit: 100 })) setNames.set(s.sys_id, s.name);
+  }
+  const uncaptured = missing.map((r) => ({
+    table: r.sys_class_name,
+    sys_id: r.sys_id,
+    name: r.sys_name,
+    update_name: updateName(r),
+    updated_on: r.sys_updated_on,
+    updated_by: r.sys_updated_by,
+    captured_in: (elsewhere.get(updateName(r)) || []).map((id) => setNames.get(id) || id),
+  }));
+  return {
+    update_set: updateSetId,
+    since,
+    until: until || null,
+    changed: changed.length,
+    captured: changed.length - uncaptured.length,
+    verdict: uncaptured.length ? 'UNCAPTURED' : 'ALL_CAPTURED',
+    uncaptured,
+    ...(changed.length >= limit ? { truncated: true, warning: `Hit the ${limit}-record limit: narrow since/until and run again.` } : {}),
+    ...(uncaptured.length
+      ? {
+          next_step:
+            'Each uncaptured record is either this run\'s work that will not move with the update set (report it: re-capture it or ship it another way, with the user), ' +
+            'or another run\'s or person\'s change in the same scope (say whose, from updated_by and updated_on). Never call the build done while its own records are uncaptured.',
+        }
+      : {}),
+  };
+}
+
 /** Update set entries for ATF schedule records, which a CI/CD suite run creates as a side effect. */
 async function atfScheduleEntries(client, updateSetId) {
   return client.query('sys_update_xml', { query: `update_set=${updateSetId}^nameSTARTSWITHsys_atf_schedule`, fields: 'name,type,target_name,action', limit: 100 });
@@ -208,16 +272,20 @@ export const TOOLS = [
   },
   {
     name: 'sn_update_set',
-    description: 'Manage the update set every write lands in. Actions: current, create (name is prefixed kiwi/), set_current, contents.',
+    description:
+      'Manage the update set every write lands in. Actions: current, create (name is prefixed kiwi/), set_current, contents, ' +
+      'capture_audit (every metadata record in the target scope changed since a time, checked against the update set; catches writes made outside this server, such as the SDK or the browser).',
     inputSchema: {
       type: 'object',
       required: ['action'],
       properties: {
         ...instanceProp,
-        action: { type: 'string', enum: ['current', 'create', 'set_current', 'contents'] },
+        action: { type: 'string', enum: ['current', 'create', 'set_current', 'contents', 'capture_audit'] },
         name: { type: 'string', description: 'For create: short task slug.' },
         description: { type: 'string' },
-        sys_id: { type: 'string', description: 'For set_current or contents.' },
+        sys_id: { type: 'string', description: 'For set_current, contents or capture_audit. Defaults to the current update set.' },
+        since: { type: 'string', description: 'For capture_audit: run start, UTC, "YYYY-MM-DD HH:MM:SS" (goal.md records it).' },
+        until: { type: 'string', description: 'For capture_audit: optional end, same format.' },
       },
     },
     async handler(a, { instance, client, guard }) {
@@ -259,6 +327,14 @@ export const TOOLS = [
         if (!id) throw new GuardError('NO_UPDATE_SET', 'No update set given and none is current.');
         const rows = await client.query('sys_update_xml', { query: `update_set=${id}`, fields: 'name,type,target_name,action,sys_updated_on', limit: 1000, orderBy: 'type' });
         return { update_set: id, count: rows.length, entries: rows };
+      }
+      if (a.action === 'capture_audit') {
+        if (!SN_DATETIME.test(a.since || '')) throw new GuardError('BAD_INPUT', 'capture_audit needs since as UTC "YYYY-MM-DD HH:MM:SS" (the run start in goal.md).');
+        if (a.until && !SN_DATETIME.test(a.until)) throw new GuardError('BAD_INPUT', 'until must be UTC "YYYY-MM-DD HH:MM:SS".');
+        if (a.sys_id) assertSysId(a.sys_id);
+        const id = a.sys_id || (await guard.currentUpdateSet())?.sys_id;
+        if (!id) throw new GuardError('NO_UPDATE_SET', 'No update set given and none is current.');
+        return captureAudit(client, { scopeId: await guard.scopeId(), updateSetId: id, since: a.since, until: a.until });
       }
       throw new GuardError('BAD_INPUT', `Unknown action ${a.action}.`);
     },

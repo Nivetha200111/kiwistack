@@ -1,6 +1,6 @@
 ---
 name: kiwi-models
-description: Shows and changes which model (and reasoning effort) each kiwistack agent role runs on - recon, domain, designer, builder, qa, security, reviewer - per user or per project, overriding the agents' built-in defaults. Use for /kiwi-models, "use opus for QA", "make the reviewer a different model", or "reset kiwistack models".
+description: Shows and changes which model (and reasoning effort) each kiwistack agent role runs on - recon, domain, designer, builder, qa, security, reviewer, slop - per user or per project, overriding the agents' built-in defaults. Use for /kiwi-models, "use opus for QA", "make the reviewer a different model", or "reset kiwistack models".
 ---
 
 # kiwi models
@@ -18,6 +18,7 @@ Every kiwistack role has a built-in default model, set in its agent file. A mode
 | qa | `kiwistack:kiwi-qa` | `sonnet` | Many checks; independent of the builder |
 | security | `kiwistack:kiwi-security` | `sonnet` | Audit and confirmation |
 | reviewer | `kiwistack:kiwi-reviewer` | `opus` | Judgment; must differ from the builder in practice (see below) |
+| slop | `kiwistack:kiwi-slop-checker` | `sonnet` | Hunts slop with proofs; keep it off the builder's model |
 
 ## The sheet
 

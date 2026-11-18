@@ -24,14 +24,15 @@ It has the same shape as pstack. One orchestrator routes each request to a playb
 ```
 plugins/kiwistack/
   skills/kiwi-mode/          orchestrator + playbooks (build a page, feature, bug fix, flow, review, ...)
-  skills/sn-recon|sn-architect|sn-interrogate|sn-verify|reflect     workflow skills
+  skills/sn-recon|sn-architect|sn-interrogate|sn-verify|reflect|unslop     workflow skills
   skills/ui-builder|next-experience-design|fluent-sdk|server-scripting|client-scripting|flow-designer|atf
   skills/sn-modules/         starting maps per module (tables, lifecycles, page ideas)
   skills/principle-*         short rules: scope, never modify OOTB, update set discipline, query hygiene, ...
   agents/kiwi-agent.md       worker for delegated build steps
-  agents/kiwi-reviewer.md    read-only independent reviewer
+  agents/kiwi-*.md           the team: recon, domain, designer, builder, qa, security, reviewer, slop checker
   mcp/servicenow/            guarded ServiceNow MCP server (Node, zero dependencies)
   hooks/                     forces a permission prompt for deletes and approved out-of-scope writes
+  scripts/                   preflight (approval hook check), evidence gate, model resolution
 tools/lint-skills.mjs        checks skills, links and tool names
 tools/spike-ux-roundtrip.mjs phase 1 spike: clone a UI Builder page through the API and diff it
 ```
@@ -52,11 +53,14 @@ Every build runs as a team of specialists (`/kiwi-team`, used by `/kiwi-mode`). 
 | `kiwi-builder` | Builds through the guarded tools | **Yes**, the only one | Opus |
 | `kiwi-qa` | Re-checks every number against the domain definition, clicks, widths, states | ATF only | Sonnet |
 | `kiwi-security` | App audit, least privilege, who can see it | No | Sonnet |
-| `kiwi-reviewer` | Independent review and slop check, on a different model from the builder | No | Opus |
+| `kiwi-reviewer` | Independent review, on a different model from the builder | No | Opus |
+| `kiwi-slop-checker` | Hunts slop: generic or placeholder page text, table names shown to users, invented numbers, leftover records, debug-laden scripts, filler in the report | No | Sonnet |
 
 **How it runs:**
+- A preflight first proves the approval hook still asks before deletes and `user_approved` writes. If someone disabled it, the run doesn't start.
 - Recon and domain run in parallel, then the design, then the build.
-- QA, security and the reviewer then run in parallel, followed by one fix round.
+- QA, security, the reviewer and the slop checker then run in parallel, followed by one fix round.
+- Every finding carries a proof: the query it ran and what came back, a quoted line, or a screenshot. Suspicions go under "Not proven" and never reach the builder.
 - Hand-offs are files in `.kiwi/runs/<task>/`.
 
 **Switch models per role** with `/kiwi-models`, or in a `models.json` per user (`~/.kiwistack/`) or per project (`.kiwi/`), for example `"qa": "opus@xhigh"`.
@@ -65,9 +69,11 @@ Every build runs as a team of specialists (`/kiwi-team`, used by `/kiwi-mode`). 
 - A run isn't done until `scripts/check-run.mjs` passes. It needs:
   - a count table checked against the instance;
   - a screenshot;
-  - security and review verdicts;
+  - security, review and slop verdicts;
+  - a proof on every finding;
+  - a capture audit: every record the run changed is in its `kiwi/` update set, including writes made through the SDK or the browser (`sn_update_set` action `capture_audit`);
   - no unresolved count mismatches;
-  - no placeholder text;
+  - no placeholder text, with the domain's own vocabulary, code and query values exempt;
   - no table names in user-facing labels.
 - Anything nobody saw is reported as unverified.
 

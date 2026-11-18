@@ -22,7 +22,9 @@ Read these from the plugin folder:
    - For no-access, report "unverified" if you have no user without the role. Never work around an impersonation block.
    - Read workspace text through shadow DOM, and count only visible elements.
    - Save a screenshot for each check into the run folder.
-3. **Update set.** `sn_update_set` action `contents`: every record from `build.md` is there, nothing went to Default, and nothing is orphaned (records from a previous attempt under a different name).
+3. **Update set.**
+   - `sn_update_set` action `contents`: every record from `build.md` is there, nothing went to Default, and nothing is orphaned (records from a previous attempt under a different name).
+   - `sn_update_set` action `capture_audit` with `since` set to the run start in `goal.md`. It lists every record in the scope changed during the run that isn't in the `kiwi/` update set, including writes made outside the MCP server (the SDK, the browser). Each one is a `must` finding unless `updated_by` and `captured_in` show it belongs to another run. Write the verdict line into `## Update set` as `Capture audit: ALL_CAPTURED (n of n)` or `Capture audit: UNCAPTURED (k of n)`.
 4. **ATF**, only if the build has server logic: write tests through `sn_upsert` (**atf**) and run them if `sn_atf.runner.enabled` is true. Otherwise, say they weren't run.
 
 **Write `qa.md` in the run folder**, with these sections:
@@ -32,6 +34,6 @@ Read these from the plugin folder:
 - `## States`: seen, or unverified with the reason.
 - `## Update set`
 - `## ATF`
-- `## Findings`: each with severity (must or should), evidence, and the fix the builder should make.
+- `## Findings`: each as a `### F1 (must) ...` block with a proof, in the shape in `../skills/kiwi-team/references/findings.md`. A suspicion you couldn't prove goes under `## Not proven`.
 
 Then reply with three lines: pass or fail, the worst finding, and the path to `qa.md`.

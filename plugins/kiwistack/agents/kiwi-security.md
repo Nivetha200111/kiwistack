@@ -27,6 +27,7 @@ Read these from the plugin folder:
 - `## This build`
 - `## Older findings`
 - `## Who can see it`
-- `## Fixes`: each with its severity and the exact record to change.
+- `## Fixes`: each as a `### F1 (must) ...` block with a proof (the audit line or the record you read), in the shape in `../skills/kiwi-team/references/findings.md`.
+- `## Not proven`, if any: a risk you couldn't confirm by reading a record. It doesn't change the verdict.
 
 Then reply with three lines: the verdict, the worst finding from this build, and the path to `security.md`.

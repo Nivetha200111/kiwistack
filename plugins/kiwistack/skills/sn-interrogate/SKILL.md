@@ -15,7 +15,8 @@ Nobody grades their own work. The review gate is closed until at least one indep
    - **Platform and security.** Scope, OOTB edits, query hygiene, ACLs, the client/server split, update set completeness.
    - **Design.** Pages only. The rubric, judged from the screenshots.
    For a small change, one reviewer covering all the lenses is enough.
-3. **Triage every finding.**
+   Tell every reviewer: report each finding in the shape in `../kiwi-team/references/findings.md`, with a proof it ran on this instance. Anything it couldn't prove goes under `## Not proven`.
+3. **Triage every proven finding.** Drop unproven ones unless you run the proof yourself and it holds.
    - **Fix.** Make the change and re-verify with **sn-verify**.
    - **Dismiss.** Give a concrete reason ("the table has 40 rows; unbounded is fine here" is concrete).
    - **Ask.** Only for a product call.

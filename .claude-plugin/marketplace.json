@@ -28,7 +28,7 @@
       "name": "kiwistack-skills",
       "source": "./plugins/kiwistack-skills",
       "description": "Text-only edition: ServiceNow principles, references and an independent reviewer. No server, hooks or scripts.",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "category": "development",
       "keywords": [
         "servicenow",

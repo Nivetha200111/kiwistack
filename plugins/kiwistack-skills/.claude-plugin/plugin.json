@@ -1,6 +1,6 @@
 {
   "name": "kiwistack-skills",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "ServiceNow development principles, references and an independent reviewer from kiwistack. Text-only edition: no server, hooks or scripts. Start with any ServiceNow request.",
   "author": {
     "name": "kiwistack maintainers"
@@ -8,6 +8,7 @@
   "homepage": "https://github.com/Nivetha200111/kiwistack",
   "repository": "https://github.com/Nivetha200111/kiwistack",
   "license": "MIT",
+  "privacyPolicyUrl": "https://github.com/Nivetha200111/kiwistack/blob/main/plugins/kiwistack-skills/README.md#privacy",
   "keywords": [
     "servicenow",
     "fluent",

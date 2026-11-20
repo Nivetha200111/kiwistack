@@ -8,7 +8,7 @@ const TEXT = new Set(['.md', '.txt', '.json', '.yaml', '.yml']);
 const IMAGE = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico']);
 const REFUSED_NAMES = new Set(['hooks.json', '.mcp.json', '.lsp.json', 'monitors.json', 'package.json', 'package-lock.json',
   'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'yarn.lock', '.npmrc', '.yarnrc', '.yarnrc.yml', 'bunfig.toml']);
-const PLUGIN_FIELDS = new Set(['name', 'version', 'description', 'author', 'homepage', 'repository', 'license', 'keywords', 'icon']);
+const PLUGIN_FIELDS = new Set(['name', 'version', 'description', 'author', 'homepage', 'repository', 'license', 'keywords', 'icon', 'privacyPolicyUrl']);
 const SAFE_PATH = /^[A-Za-z0-9._\-/]+$/;
 
 function files(dir) {

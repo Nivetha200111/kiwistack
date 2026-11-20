@@ -1,6 +1,6 @@
 # kiwistack-skills
 
-The text-only edition of [kiwistack](https://github.com/Nivetha200111/kiwistack) for Claude Code: ServiceNow development principles, references and an independent reviewer agent.
+The text-only edition of [kiwistack](https://github.com/Nivetha200111/kiwistack) for Claude Code: ServiceNow development principles, references and an independent reviewer agent. [Privacy](#privacy)
 
 ```
 /plugin install kiwistack-skills --marketplace Nivetha200111/kiwistack
@@ -29,6 +29,10 @@ Install it from GitHub:
 claude plugin marketplace add Nivetha200111/kiwistack
 claude plugin install kiwistack@kiwistack
 ```
+
+## Privacy
+
+Through the tools you've connected, Claude reads records from your ServiceNow instance, and those records can include people's names and email addresses. Data goes only to the instance you point it at. kiwistack has no service of its own, so nothing is sent to its maintainers and nothing is kept.
 
 ## License
 

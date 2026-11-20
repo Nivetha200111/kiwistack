@@ -129,6 +129,8 @@ The MCP server enforces these. They don't rely on prompts alone.
 
 Then run `/setup-kiwistack` to connect your dev instance over OAuth.
 
+**Text-only edition.** `kiwistack-skills` (in `plugins/kiwistack-skills`) has the principles, the domain skills and the reviewer, with no server, hooks or scripts. It's the edition for the Claude plugin directory, which accepts only text plugins from unverified publishers. It can't touch an instance on its own: it works through the ServiceNow SDK or a ServiceNow MCP server you already use. Install it with `/plugin install kiwistack-skills@kiwistack`. Its skills are generated from the full plugin's by `tools/build-skills-edition.mjs`, so edit the full plugin and rebuild.
+
 **Cost.** A team run spends a lot of tokens: eight or nine agents re-checking each other. The HRSD onboarding build took 156 minutes. Use `/kiwi-models` to put roles on cheaper models, and use a single `kiwi-agent` step for small changes.
 
 ## Status
@@ -152,7 +154,7 @@ node tools/spike-ux-roundtrip.mjs --from sys_ux_screen_type:<sys_id>
 npm test
 ```
 
-This runs the MCP server tests and the skill linter.
+This runs the MCP server tests, checks that the text-only edition is up to date with the full plugin, and runs the skill linter, which also checks the edition against the plugin directory's rules.
 
 ## License
 

@@ -32,7 +32,7 @@ export function preflight({ pluginRoot = PLUGIN_ROOT } = {}) {
   }
   const registered = entries.some(
     (e) => e.matcher && new RegExp(`^(?:${e.matcher})$`).test(TOOL('sn_delete')) && new RegExp(`^(?:${e.matcher})$`).test(TOOL('sn_upsert')) &&
-      (e.hooks || []).some((h) => /approval-gate\.mjs/.test(h.command || '')),
+      (e.hooks || []).some((h) => /approval-gate\.mjs/.test([h.command || '', ...(h.args || [])].join(' '))),
   );
   if (!registered) problems.push('hooks/hooks.json no longer runs approval-gate.mjs before ServiceNow writes and deletes.');
 

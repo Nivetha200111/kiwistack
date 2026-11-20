@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "npm --prefix plugins/kiwistack/mcp/servicenow test && node tools/lint-skills.mjs",
+    "test": "npm --prefix plugins/kiwistack/mcp/servicenow test && node tools/build-skills-edition.mjs --check && node tools/lint-skills.mjs",
     "lint": "node tools/lint-skills.mjs",
     "spike": "node tools/spike-ux-roundtrip.mjs"
   }

@@ -135,8 +135,9 @@ Then run `/setup-kiwistack` to connect your dev instance over OAuth.
 
 ## Status
 
-**Version 0.2.0.**
-- 58 tests run against a fake in-memory instance.
+**Version 0.5.0.**
+- 70 tests run against a fake in-memory instance.
+- Tool replies are compact JSON, with no indentation. Every field name still sits beside its value, so agents read the same data in fewer tokens: about 21% fewer on a 50-row `sn_query`, counted with a GPT-4o tokenizer as a stand-in for Claude's.
 - Proven end to end on a Brazil PDI:
   - a full `/kiwi-mode` page build;
   - pages compiled by `sn_ux_build_page` on `incident` and `change_request`;
@@ -155,6 +156,10 @@ npm test
 ```
 
 This runs the MCP server tests, checks that the text-only edition is up to date with the full plugin, and runs the skill linter, which also checks the edition against the plugin directory's rules.
+
+## Side project
+
+[surprisal-compress](https://github.com/Nivetha200111/surprisal-compress) ([live demo](https://surprisal-compress.vercel.app)) shrinks prompts by keeping the words a small language model finds surprising. It isn't part of kiwistack: kiwistack's readers are Opus and Sonnet, and dropping words could hide a proof.
 
 ## License
 

@@ -62,3 +62,14 @@ test('the stdio server answers over a real pipe and reports missing config as a 
   assert.equal(lines[1].result.isError, true);
   assert.match(JSON.parse(lines[1].result.content[0].text).message, /setup-kiwistack/);
 });
+
+test('tool replies are compact JSON: no indentation, every key beside its value, same object', async () => {
+  const { makeFakeInstance } = await import('./fake-instance.mjs');
+  const fake = makeFakeInstance();
+  fake.put('incident', { sys_id: 'a'.repeat(32), number: 'INC0010001', assigned_to: '' });
+  fake.put('incident', { sys_id: 'b'.repeat(32), number: 'INC0010002', assigned_to: 'c'.repeat(32) });
+  const res = await createServer({ contextFor: () => fake.ctx }).callTool('sn_query', { table: 'incident', fields: 'number,assigned_to' });
+  const text = res.content[0].text;
+  assert.ok(!text.includes('\n'), 'no line breaks or indentation');
+  assert.deepEqual(JSON.parse(text), { count: 2, rows: [{ number: 'INC0010001', assigned_to: '' }, { number: 'INC0010002', assigned_to: 'c'.repeat(32) }] });
+});

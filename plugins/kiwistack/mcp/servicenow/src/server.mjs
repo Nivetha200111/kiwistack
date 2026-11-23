@@ -7,7 +7,7 @@ import { TokenProvider } from './auth.mjs';
 import { SnClient } from './client.mjs';
 import { Guard } from './guard.mjs';
 
-export const SERVER_INFO = { name: 'kiwistack-servicenow', version: '0.4.1' };
+export const SERVER_INFO = { name: 'kiwistack-servicenow', version: '0.5.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
 /** Builds one { instance, client, guard } per instance profile, on first use. */
@@ -35,7 +35,7 @@ export function createServer({ contextFor = defaultContextFactory(), tools = TOO
     try {
       const ctx = contextFor(args?.instance);
       const result = await tool.handler(args || {}, ctx);
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     } catch (e) {
       const err = /** @type {any} */ (e);
       const payload = {
@@ -45,7 +45,7 @@ export function createServer({ contextFor = defaultContextFactory(), tools = TOO
         ...(err.detail ? { detail: err.detail } : {}),
         ...(err.body ? { body: err.body } : {}),
       };
-      return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }], isError: true };
+      return { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true };
     }
   }
 
